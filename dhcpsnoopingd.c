@@ -1080,7 +1080,7 @@ int main(int argc, char *argv[])
 {
 	openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 
-	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 771 2013-05-03 19:06:50Z mbr $\n");
+	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 773 2013-05-03 21:31:59Z mbr $\n");
 	/* parse args */
 	int c;
      
@@ -1219,26 +1219,6 @@ int main(int argc, char *argv[])
 
 #endif
 
-	fd_set rfds;
-	int nffd, maxfd, retval;
-#ifdef __USE_ROAMING__
-	int rffd;
-#endif
-
-	FD_ZERO(&rfds);
-
-	maxfd = nffd = nl_socket_get_fd(nf_sock_nflog);
-	FD_SET(nffd, &rfds);
-
-#ifdef __USE_ROAMING__
-	rffd = nl_socket_get_fd(nf_sock_route);
-	FD_SET(rffd, &rfds);
-	if (rffd > maxfd)
-		maxfd = rffd;
-	FD_SET(udpsocket, &rfds);
-	if (udpsocket > maxfd)
-		maxfd = udpsocket;
-#endif
         // Block SIGALRM and SIGUSR1
         sigset_t sigset, oldset;
         sigemptyset(&sigset);
@@ -1248,7 +1228,27 @@ int main(int argc, char *argv[])
         sigprocmask(SIG_BLOCK, &sigset, &oldset);
 
 	/* wait for an incoming message on the netlink nf_socket */
+	fd_set rfds;
+	int nffd, maxfd, retval;
+#ifdef __USE_ROAMING__
+	int rffd;
+#endif
 	while (1) {
+
+		FD_ZERO(&rfds);
+
+		maxfd = nffd = nl_socket_get_fd(nf_sock_nflog);
+		FD_SET(nffd, &rfds);
+
+#ifdef __USE_ROAMING__
+		rffd = nl_socket_get_fd(nf_sock_route);
+		FD_SET(rffd, &rfds);
+		if (rffd > maxfd)
+			maxfd = rffd;
+		FD_SET(udpsocket, &rfds);
+		if (udpsocket > maxfd)
+			maxfd = udpsocket;
+#endif
 		retval = pselect(maxfd+1, &rfds, NULL, NULL, NULL, &oldset);
 		if (retval < 0 && errno != EINTR)
 			break;
