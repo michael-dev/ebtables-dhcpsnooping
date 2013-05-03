@@ -216,6 +216,10 @@ struct cache_fdb_entry* get_fdb_entry(const uint8_t* mac, const char* ifname) {
 
 struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, const uint32_t expiresAt) {
 	struct cache_req_entry* entry = malloc(sizeof(struct cache_req_entry));
+	if (!entry) {
+		eprintf(DEBUG_ERROR, "out of memory at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		return NULL;
+	}
 	memset(entry, 0, sizeof(struct cache_req_entry));
 	memcpy(entry->mac, mac, ETH_ALEN);
 	strncpy(entry->bridge, ifname, IF_NAMESIZE);
@@ -227,6 +231,10 @@ struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, co
 
 struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt) {
 	struct cache_ack_entry* entry = malloc(sizeof(struct cache_ack_entry));
+	if (!entry) {
+		eprintf(DEBUG_ERROR, "out of memory at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		return NULL;
+	}
 	memset(entry, 0, sizeof(struct cache_ack_entry));
 	memcpy(entry->mac, mac, ETH_ALEN);
 	memcpy(&entry->ip,yip,sizeof(struct in_addr));
@@ -241,6 +249,10 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, uint8_t enabled) {
 	if (globalFdbCacheSize > FDBMAXSIZE) return NULL;
 	struct cache_fdb_entry* entry = malloc(sizeof(struct cache_fdb_entry));
+	if (!entry) {
+		eprintf(DEBUG_ERROR, "out of memory at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		return NULL;
+	}
 	memset(entry, 0, sizeof(struct cache_fdb_entry));
 	memcpy(entry->mac, mac, ETH_ALEN);
 	strncpy(entry->bridge, ifname, IF_NAMESIZE);
@@ -275,7 +287,7 @@ struct cache_ack_entry* add_ack_entry_if_not_found(const struct in_addr* yip, co
 	assert(yip); assert(mac); assert(ifname);
 	struct cache_ack_entry* entry = get_ack_entry(yip, mac, ifname);
 	if (entry == NULL) {
-		add_ack_entry(yip, mac, ifname, expiresAt);
+		entry = add_ack_entry(yip, mac, ifname, expiresAt);
 		/* run cmd */
 		ebtables_add(yip, mac, ifname);
 	} else {
@@ -519,12 +531,6 @@ void got_packet(const u_char *packet, const int len, const char* ifname)
 	}
 
 	/** update cache */
-	sigset_t base_mask;
-	sigemptyset (&base_mask);
-	sigaddset (&base_mask, SIGALRM);
-	sigaddset (&base_mask, SIGUSR1);
-	sigprocmask (SIG_SETMASK, &base_mask, NULL);
-
 	if (dhcpmsgtype == LIBNET_DHCP_MSGREQUEST) {
 		struct cache_req_entry* entry = get_req_entry(mac, ifname);
 		uint32_t expiresAt = time(NULL) + REQ_LIFETIME;
@@ -593,10 +599,10 @@ void got_packet(const u_char *packet, const int len, const char* ifname)
 		eprintf(DEBUG_DHCP,  "ERR: invalid dhcp_mode\n");
 	}
 
-	sigemptyset (&base_mask);
-	sigprocmask (SIG_SETMASK, &base_mask, NULL);
 	eprintf(DEBUG_DHCP,  "DHCP ACK processing finished\n");
 }
+
+int signalDump = 0, signalExpire = 0;
 
 void check_expired_ack()
 {
@@ -723,7 +729,7 @@ void check_expired_fdb()
 }
 #endif
 
-void check_expired(int signum)
+void check_expired()
 {
 	eprintf(DEBUG_GENERAL,  "cleanup...\n");
 	check_expired_ack();
@@ -755,6 +761,7 @@ void dump_req()
 	}
 }
 
+#ifdef __USE_ROAMING__
 void dump_fdb()
 {
 	struct cache_fdb_entry* entry = globalFdbCache;
@@ -763,13 +770,16 @@ void dump_fdb()
 		entry = entry->next;
 	}
 }
+#endif
 
-void dump(int signum)
+void dump()
 {
 	eprintf(DEBUG_GENERAL,  "dump...\n");
 	dump_ack();
 	dump_req();
+#ifdef __USE_ROAMING__
 	dump_fdb();
+#endif
 	eprintf(DEBUG_GENERAL,  "dump... done\n");
 }
 
@@ -806,7 +816,7 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 #ifdef __USE_ROAMING__
 static void obj_input_route(struct nl_object *obj, void *arg)
 {
-	eprintf(DEBUG_NEIGH,  "obj_input_route...\n");
+//	eprintf(DEBUG_NEIGH,  "obj_input_route...\n");
 
 	int type = nl_object_get_msgtype(obj);
 	if (!(   (type == RTM_NEWNEIGH)
@@ -828,7 +838,6 @@ static void obj_input_route(struct nl_object *obj, void *arg)
 	char lladdr[32];
 	nl_addr2str(rtnl_neigh_get_lladdr(neigh), lladdr, sizeof(lladdr));
 
-	eprintf(DEBUG_NEIGH, "got %s, lladdr = %s, family=AF_BRIDGE ", (type == RTM_NEWNEIGH ? "NEWNEIGH" : "DELNEIGH" ), lladdr);
 	// need brige and at best port
 	int ifidx = rtnl_neigh_get_ifindex(neigh);
 
@@ -861,7 +870,6 @@ static void obj_input_route(struct nl_object *obj, void *arg)
 		eprintf(DEBUG_ERROR, "missing link ifname: %s\n", strerror(errno));
 		goto out;
 	}
-	eprintf(DEBUG_NEIGH,  "iface = %s ", linkifname);
 
 	int bridgeidx = rtnl_link_get_master(link);
 	if (bridgeidx == 0) {
@@ -881,19 +889,13 @@ static void obj_input_route(struct nl_object *obj, void *arg)
 		eprintf(DEBUG_ERROR, "missing bridge ifname: %s\n", strerror(errno));
 		goto out;
 	}
-	eprintf(DEBUG_NEIGH,  " br-iface = %s ", bridgeifname);
+	eprintf(DEBUG_NEIGH, "got %s, lladdr = %s, family=AF_BRIDGE iface=%s br-iface=%s", (type == RTM_NEWNEIGH ? "NEWNEIGH" : "DELNEIGH" ), lladdr, linkifname, bridgeifname);
 
 	if (strncmp(linkifname, ROAMIFPREFIX, strlen(ROAMIFPREFIX)) != 0) {
-		eprintf(DEBUG_NEIGH, "\nprefix of ifname is not %s -> DELETE\n", ROAMIFPREFIX);
+//		eprintf(DEBUG_NEIGH, "\nprefix of ifname is not %s -> DELETE\n", ROAMIFPREFIX);
 		type = RTM_DELNEIGH;
 	}
 
-	sigset_t base_mask;
-	sigemptyset (&base_mask);
-	sigaddset (&base_mask, SIGALRM);
-	sigaddset (&base_mask, SIGUSR1);
-	sigprocmask (SIG_SETMASK, &base_mask, NULL);
-	
 	struct ether_addr *mac = ether_aton(lladdr);
 	{
 		struct cache_fdb_entry* entry = get_fdb_entry((uint8_t*) mac, bridgeifname);
@@ -954,8 +956,6 @@ out2:
 		eprintf(DEBUG_NEIGH, "mysql completed\n");
 	}
 #endif
-	sigemptyset (&base_mask);
-	sigprocmask (SIG_SETMASK, &base_mask, NULL);
 out:
 	if (link)
 		rtnl_link_put(link);
@@ -1000,12 +1000,6 @@ static void handle_udp_message(char* buf, int recvlen) {
 		pos++;
 	*pos = '\0'; // terminate str_expire
 
-	sigset_t base_mask;
-	sigemptyset (&base_mask);
-	sigaddset (&base_mask, SIGALRM);
-	sigaddset (&base_mask, SIGUSR1);
-	sigprocmask (SIG_SETMASK, &base_mask, NULL);
-
 #ifdef __USE_MYSQL__
 	/* query database for lease, goto out if not found */
 	char sql[1024];
@@ -1020,12 +1014,12 @@ static void handle_udp_message(char* buf, int recvlen) {
 	snprintf(sql, sizeof(sql), "SELECT MAX(validUntil) - UNIX_TIMESTAMP() FROM %s WHERE validUntil > UNIX_TIMESTAMP() AND bridge = '%s' AND mac = '%s' AND ip = '%s';", MYSQLLEASETABLE, sql_esc_bridge, sql_esc_mac, sql_esc_ip);
 	eprintf(DEBUG_UDP,  "query: %s\n", sql);
 	if (mysql_query_errprint(sql) != 0) {
-		goto out;
+		return;
 	}
 	/* mysql query sucessfull */
 	result = mysql_store_result(&mysql);
 	if (!result) { /* Es ist ein Fehler aufgetreten */
-		goto out;
+		return;
 	}
 	/* MAX(validUntil) - UNIX_TIMESTAMP() == NULL wenn keine records gefunden werden -> row[0] == NULL */
 	row = mysql_fetch_row(result);
@@ -1033,7 +1027,7 @@ static void handle_udp_message(char* buf, int recvlen) {
 		eprintf(DEBUG_UDP,  "database has no lease for data given in udp packet\n");
 		mysql_free_result(result);
 		result = NULL;
-		goto out;
+		return;
 	}
 	str_expire = row[0];
 	mysql_free_result(result);
@@ -1044,13 +1038,13 @@ static void handle_udp_message(char* buf, int recvlen) {
 	if (if_nametoindex(ifname) == 0) {
 		eprintf(DEBUG_ERROR, "invalid interface: %s\n", strerror(errno));
 		eprintf(DEBUG_UDP,  "Interface %s unknown\n", ifname);
-		goto out;
+		return;
 	}
 	struct ether_addr *mac = ether_aton(str_mac);
 	struct in_addr yip;
 	if (!inet_aton(str_ip, &yip)) {
 		eprintf(DEBUG_UDP,  "invalid ip %s\n", str_ip);
-		goto out;
+		return;
 	}
 	int expire = time(NULL) + atoi(str_expire);
 
@@ -1059,28 +1053,34 @@ static void handle_udp_message(char* buf, int recvlen) {
 	if (ack_entry) {
 		ack_entry->expiresAt = expire;
 		eprintf(DEBUG_UDP,  "mac %s on %s with ip %s has ebtables rule, update expire to %d and skip\n", str_mac, str_ifname, str_ip, expire);
-		goto out;
+		return;
 	}
 	/* check if in fdb, else exit */
 	struct cache_fdb_entry* fdb_entry = get_fdb_entry((uint8_t*) mac, ifname);
 	if (!fdb_entry || !fdb_entry->enabled) {
-		goto out;
+		return;
 	}
 	/* add lease */
 	eprintf(DEBUG_UDP,  "adding new lease\n");
 	add_ack_entry(&yip, (uint8_t*) mac, ifname, expire);
 	ebtables_add(&yip, (uint8_t*) mac, ifname);
-	out:
-	sigemptyset (&base_mask);
-	sigprocmask (SIG_SETMASK, &base_mask, NULL);
 }				
 #endif
+
+void signal_expire(int signum) {
+	signalExpire = 1;
+}
+
+void signal_dump(int signum) {
+	signalDump = 1;
+}
+
 
 int main(int argc, char *argv[])
 {
 	openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 
-	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 728 2013-04-24 12:43:22Z mbr $\n");
+	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 771 2013-05-03 19:06:50Z mbr $\n");
 	/* parse args */
 	int c;
      
@@ -1130,9 +1130,9 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	signal (SIGALRM, check_expired);
+	signal (SIGALRM, signal_expire);
 	alarm (PRUNE_INTERVAL);
-	signal (SIGUSR1, dump);
+	signal (SIGUSR1, signal_dump);
 
 	/* connect to netfilter / NFLOG */
 	struct nl_sock *nf_sock_nflog;
@@ -1219,32 +1219,43 @@ int main(int argc, char *argv[])
 
 #endif
 
+	fd_set rfds;
+	int nffd, maxfd, retval;
+#ifdef __USE_ROAMING__
+	int rffd;
+#endif
+
+	FD_ZERO(&rfds);
+
+	maxfd = nffd = nl_socket_get_fd(nf_sock_nflog);
+	FD_SET(nffd, &rfds);
+
+#ifdef __USE_ROAMING__
+	rffd = nl_socket_get_fd(nf_sock_route);
+	FD_SET(rffd, &rfds);
+	if (rffd > maxfd)
+		maxfd = rffd;
+	FD_SET(udpsocket, &rfds);
+	if (udpsocket > maxfd)
+		maxfd = udpsocket;
+#endif
+        // Block SIGALRM and SIGUSR1
+        sigset_t sigset, oldset;
+        sigemptyset(&sigset);
+        sigaddset(&sigset, SIGTERM);
+	sigaddset (&sigset, SIGALRM);
+	sigaddset (&sigset, SIGUSR1);
+        sigprocmask(SIG_BLOCK, &sigset, &oldset);
+
+	/* wait for an incoming message on the netlink nf_socket */
 	while (1) {
-		fd_set rfds;
-		int nffd, maxfd, retval;
-#ifdef __USE_ROAMING__
-		int rffd;
-#endif
-
-		FD_ZERO(&rfds);
-
-		maxfd = nffd = nl_socket_get_fd(nf_sock_nflog);
-		FD_SET(nffd, &rfds);
-
-#ifdef __USE_ROAMING__
-		rffd = nl_socket_get_fd(nf_sock_route);
-		FD_SET(rffd, &rfds);
-		if (rffd > maxfd)
-			maxfd = rffd;
-		FD_SET(udpsocket, &rfds);
-		if (udpsocket > maxfd)
-			maxfd = udpsocket;
-#endif
-
-		/* wait for an incoming message on the netlink nf_socket */
+		retval = pselect(maxfd+1, &rfds, NULL, NULL, NULL, &oldset);
+		if (retval < 0 && errno != EINTR)
+			break;
+		// Do some processing. Note that the process will not be
+		// interrupted while inside this loop.
 		eprintf(DEBUG_GENERAL,  ".");
-		retval = select(maxfd+1, &rfds, NULL, NULL, NULL);
-		if (retval) {
+		if (retval > 0) {
 			if (FD_ISSET(nffd, &rfds))
 				nl_recvmsgs_default(nf_sock_nflog);
 #ifdef __USE_ROAMING__
@@ -1257,8 +1268,8 @@ int main(int argc, char *argv[])
 				int recvlen = 0;
 			        if ((recvlen = recvfrom(udpsocket, buf, sizeof(buf)-1 , MSG_DONTWAIT, (struct sockaddr*) &their_addr, &addr_len)) < 0) {
 			                eprintf(DEBUG_ERROR, "recvfrom udpsocket: %s\n", strerror(errno));
-        			} else if (strncmp(inet_ntoa(their_addr.sin_addr), NETWORKPREFIX, strlen(NETWORKPREFIX)) != 0) {
-				        eprintf(DEBUG_UDP,  "got packet from %s, not match prefix %s\n",inet_ntoa(their_addr.sin_addr), NETWORKPREFIX);
+       				} else if (strncmp(inet_ntoa(their_addr.sin_addr), NETWORKPREFIX, strlen(NETWORKPREFIX)) != 0) {
+			        	eprintf(DEBUG_UDP,  "got packet from %s, not match prefix %s\n",inet_ntoa(their_addr.sin_addr), NETWORKPREFIX);
 				} else {
 				        eprintf(DEBUG_UDP,  "got packet from %s\n",inet_ntoa(their_addr.sin_addr));
 				        eprintf(DEBUG_UDP,  "packet contains \"%s\"\n",buf);
@@ -1267,7 +1278,17 @@ int main(int argc, char *argv[])
 			}
 #endif
 		}
+		if (signalExpire) {
+			signalExpire = 0;
+			check_expired();
+		}
+		if (signalDump) {
+			signalDump = 0;
+			dump();
+		}
 	}
+	eprintf(DEBUG_ERROR, "exit due to: %s\n", strerror(errno));
 
 	return 0;
 }
+
