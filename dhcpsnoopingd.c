@@ -458,7 +458,7 @@ void got_packet(const u_char *packet, const int len, const char* ifname)
 		return;
 	}
 	// fields
-	uint32_t leaseTime = 24 * 60 * 60; // defaults to 24h
+	uint32_t leaseTime = 0; // no default when DHCP ACK generated in reply to DHCP INFORM
 	uint32_t tmp_yip = ntohl(dhcp->dhcp_yip);
 	struct in_addr yip;
 	memcpy(&yip, &tmp_yip, sizeof(yip));
@@ -502,7 +502,7 @@ void got_packet(const u_char *packet, const int len, const char* ifname)
 		case 0x08: dhcpmsgtypestr = "INFORM"; break;
 	}
 	if (!(
-	          (dhcpmsgtype == LIBNET_DHCP_MSGACK && dhcp_mode == c_dhcp_ack)
+	          (dhcpmsgtype == LIBNET_DHCP_MSGACK && dhcp_mode == c_dhcp_ack && leaseTime > 0) // RFC 2131: when leaseTime = 0, this is a DHCPINFORM reply not assigning any lease
 	       || (dhcpmsgtype == LIBNET_DHCP_MSGREQUEST && dhcp_mode == c_dhcp_req)
 	       || (dhcpmsgtype == LIBNET_DHCP_MSGRELEASE && dhcp_mode == c_dhcp_req)
 	     )
@@ -510,8 +510,8 @@ void got_packet(const u_char *packet, const int len, const char* ifname)
 	   	char* mode = "UNKNOWN";
 		if (dhcp_mode == c_dhcp_req) mode = "c2s";
 		if (dhcp_mode == c_dhcp_ack) mode = "s2c";
-		eprintf(DEBUG_DHCP, "%s:%d dhcp no ack from server / no request-release from client\n", __FILE__, __LINE__);
-		eprintf(DEBUG_DHCP, "msgtype = %s, mode = %s\n", dhcpmsgtypestr, mode);
+		eprintf(DEBUG_DHCP, "%s:%d dhcp no ack from server / no request-release from client / missing lease time\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "msgtype = %s, mode = %s, leaseTime = %d\n", dhcpmsgtypestr, mode, leaseTime);
 		return;
 	}
 
@@ -1080,7 +1080,7 @@ int main(int argc, char *argv[])
 {
 	openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 
-	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 773 2013-05-03 21:31:59Z mbr $\n");
+	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 775 2013-05-04 12:05:03Z mbr $\n");
 	/* parse args */
 	int c;
      
