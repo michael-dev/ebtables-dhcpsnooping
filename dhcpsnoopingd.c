@@ -7,9 +7,8 @@
  * i.e. non-local stations.
  *
  *	This library is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU Lesser General Public
- *	License as published by the Free Software Foundation version 2.1
- *	of the License.
+ *	modify it under the terms of the GNU General Public License as
+ *	published by the Free Software Foundation version 3 of the License.
  *
  *  gcc -I /usr/include/libnl3/ dhcpsnoopingd.c -l nl-3 -l nl-genl-3 -l nl-nf-3 -l nl-route-3 -o dhcpsnoopingd
  *
@@ -836,7 +835,16 @@ static void obj_input_route(struct nl_object *obj, void *arg)
 	}
 
 	char lladdr[32];
-	nl_addr2str(rtnl_neigh_get_lladdr(neigh), lladdr, sizeof(lladdr));
+	{
+		struct nl_addr* addr = rtnl_neigh_get_lladdr(neigh);
+		if (nl_addr_get_family(addr) != AF_LLC) {
+			eprintf(DEBUG_NEIGH,  "addr family %d != AF_LLC (%d), ignore\n", nl_addr_get_family(addr), AF_LLC);
+			addr = NULL;
+			return;
+		}
+		nl_addr2str(addr, lladdr, sizeof(lladdr));
+		addr = NULL;
+	}
 
 	// need brige and at best port
 	int ifidx = rtnl_neigh_get_ifindex(neigh);
@@ -1080,7 +1088,7 @@ int main(int argc, char *argv[])
 {
 	openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 
-	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 775 2013-05-04 12:05:03Z mbr $\n");
+	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 795 2013-05-16 16:38:33Z mbr $\n");
 	/* parse args */
 	int c;
      
