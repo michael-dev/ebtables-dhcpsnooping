@@ -105,7 +105,8 @@
 #define MYSQLDB "dhcpsnooping"
 #define MYSQLLEASETABLE "leases"
 #define MYSQLGROUP "dhcpsnooping"
-#define ROAMIFPREFIX "wlan"
+/* prefix of wireless interfaces */
+#define ROAMIFPREFIX "wl"
 #define FDBMAXSIZE 4096
 #define NETWORKPORT 1000
 #define NETWORKADDR "10.30.255.255"
@@ -167,6 +168,7 @@ struct cache_fdb_entry {
 	char bridge[IF_NAMESIZE];
 	uint8_t mac[ETH_ALEN];
 	uint8_t enabled;
+	unsigned int portidx;
 	struct cache_fdb_entry* next;
 };
 
@@ -200,11 +202,12 @@ struct cache_ack_entry* get_ack_entry(const struct in_addr* yip, const uint8_t* 
 }
 
 #ifdef __USE_ROAMING__
-struct cache_fdb_entry* get_fdb_entry(const uint8_t* mac, const char* ifname) {
+struct cache_fdb_entry* get_fdb_entry(const uint8_t* mac, const char* bridge, const unsigned int portidx) {
 	struct cache_fdb_entry* entry = globalFdbCache;
 	while (entry != NULL) {
-		if (memcmp(entry->mac, mac, ETH_ALEN) == 0
-		    && strncmp(entry->bridge, ifname, IF_NAMESIZE) == 0) {
+		if (memcmp(entry->mac, mac, ETH_ALEN) == 0 &&
+		    ((bridge && strncmp(entry->bridge, bridge, IF_NAMESIZE) == 0) || entry->portidx == portidx)
+		   ) {
 			break;
 		}
 		entry = entry->next;
@@ -245,7 +248,7 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 }
 
 #ifdef __USE_ROAMING__
-struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, uint8_t enabled) {
+struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, uint8_t enabled, unsigned int portidx) {
 	if (globalFdbCacheSize > FDBMAXSIZE) return NULL;
 	struct cache_fdb_entry* entry = malloc(sizeof(struct cache_fdb_entry));
 	if (!entry) {
@@ -256,6 +259,7 @@ struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, ui
 	memcpy(entry->mac, mac, ETH_ALEN);
 	strncpy(entry->bridge, ifname, IF_NAMESIZE);
 	entry->enabled = enabled;
+	entry->portidx = portidx;
 	entry->next = globalFdbCache;
 	globalFdbCache = entry;
 	globalFdbCacheSize++;
@@ -541,7 +545,7 @@ void got_packet(const u_char *packet, const int len, const char* ifname)
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGACK
 	           && (get_req_entry(mac, ifname) != NULL
 #ifdef __USE_ROAMING__
-                       || get_fdb_entry(mac, ifname) != NULL
+                       || get_fdb_entry(mac, ifname, 0) != NULL
 #endif
 	              )
 		  ) {
@@ -813,21 +817,24 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 }
 
 #ifdef __USE_ROAMING__
-static void obj_input_route(struct nl_object *obj, void *arg)
+static void obj_input_dellink(struct rtnl_link *link)
 {
-//	eprintf(DEBUG_NEIGH,  "obj_input_route...\n");
+	char *ifname = rtnl_link_get_name(link);
+	unsigned int ifidx = rtnl_link_get_ifindex(link);
 
-	int type = nl_object_get_msgtype(obj);
-	if (!(   (type == RTM_NEWNEIGH)
-	      || (type == RTM_DELNEIGH)
-	     )
-	   ) {
-		eprintf(DEBUG_NEIGH,  "type %d != RTM_NEWNEIGH (%d), RTM_DELNEIGH (%d), ignore\n", type, RTM_NEWNEIGH, RTM_DELNEIGH);
-		return;
+	eprintf(DEBUG_NEIGH,  "DELLINK message for %s (%d) received, pruning\n", ifname, ifidx);
+
+	struct cache_fdb_entry* entry;
+	for (entry = globalFdbCache; entry; entry = entry->next) {
+		if (strncmp(entry->bridge, ifname, IF_NAMESIZE) != 0 && entry->portidx != ifidx) {
+			continue;
+		}
+		entry->enabled = 0;
 	}
+}
 
-	struct rtnl_neigh *neigh = (struct rtnl_neigh *) obj;
-
+static void obj_input_neigh(int type, struct rtnl_neigh *neigh)
+{
 	int family = rtnl_neigh_get_family(neigh);
 	if (family != AF_BRIDGE) {
 		eprintf(DEBUG_NEIGH,  "family %d != AF_BRIDGE (%d), ignore\n", family, AF_BRIDGE);
@@ -868,56 +875,65 @@ static void obj_input_route(struct nl_object *obj, void *arg)
 	struct rtnl_link *link = NULL, *bridge = NULL;
 	if (rtnl_link_get_kernel(sock, ifidx, NULL, &link) < 0) {
 		link = NULL;
-		eprintf(DEBUG_NEIGH,  "failed to fetch link %d from kernel\n", ifidx);
-		goto out;
+		if (type == RTM_NEWNEIGH) {
+			eprintf(DEBUG_NEIGH,  "failed to fetch link %d from kernel\n", ifidx);
+			goto out;
+		}
+		/* RTM_DELNEIGH also works without interface resolution */
 	}
-	assert(link);
+	if (type == RTM_NEWNEIGH)
+		assert(link);
 
-	char *linkifname = rtnl_link_get_name(link);
-	if (!linkifname) {
-		eprintf(DEBUG_ERROR, "missing link ifname: %s\n", strerror(errno));
-		goto out;
-	}
+	char *linkifname = NULL;
+	char *bridgeifname = NULL;
+	if (link) {
+		linkifname = rtnl_link_get_name(link);
+		if (!linkifname) {
+			eprintf(DEBUG_ERROR, "missing link ifname: %s\n", strerror(errno));
+			goto out;
+		}
 
-	int bridgeidx = rtnl_link_get_master(link);
-	if (bridgeidx == 0) {
-		eprintf(DEBUG_ERROR, "missing bridge idx: %s\n", strerror(errno));
-		goto out;
-	}
+		unsigned int bridgeidx = rtnl_link_get_master(link);
+		if (bridgeidx == 0) {
+			eprintf(DEBUG_ERROR, "missing bridge idx: %s\n", strerror(errno));
+			goto out;
+		}
 
-	if (rtnl_link_get_kernel(sock, bridgeidx, NULL, &bridge) < 0) {
-		bridge = NULL;
-		eprintf(DEBUG_NEIGH,  " failed to fetch bridge link %d from kernel\n", bridgeidx);
-		goto out;
-	}
-	assert(bridge);
+		if (rtnl_link_get_kernel(sock, bridgeidx, NULL, &bridge) < 0) {
+			bridge = NULL;
+			eprintf(DEBUG_NEIGH,  " failed to fetch bridge link %d from kernel\n", bridgeidx);
+			goto out;
+		}
+		assert(bridge);
 
-	char *bridgeifname = rtnl_link_get_name(bridge);
-	if (!bridgeifname) {
-		eprintf(DEBUG_ERROR, "missing bridge ifname: %s\n", strerror(errno));
-		goto out;
-	}
-	eprintf(DEBUG_NEIGH, "got %s, lladdr = %s, family=AF_BRIDGE iface=%s br-iface=%s", (type == RTM_NEWNEIGH ? "NEWNEIGH" : "DELNEIGH" ), lladdr, linkifname, bridgeifname);
+		bridgeifname = rtnl_link_get_name(bridge);
+		if (!bridgeifname) {
+			eprintf(DEBUG_ERROR, "missing bridge ifname: %s\n", strerror(errno));
+			goto out;
+		}
+		eprintf(DEBUG_NEIGH, "got %s, lladdr = %s, family=AF_BRIDGE iface=%s br-iface=%s", (type == RTM_NEWNEIGH ? "NEWNEIGH" : "DELNEIGH" ), lladdr, linkifname, bridgeifname);
 
-	if (strncmp(linkifname, ROAMIFPREFIX, strlen(ROAMIFPREFIX)) != 0) {
-//		eprintf(DEBUG_NEIGH, "\nprefix of ifname is not %s -> DELETE\n", ROAMIFPREFIX);
-		type = RTM_DELNEIGH;
+		if (strncmp(linkifname, ROAMIFPREFIX, strlen(ROAMIFPREFIX)) != 0) {
+//			eprintf(DEBUG_NEIGH, "\nprefix of ifname is not %s -> DELETE\n", ROAMIFPREFIX);
+			type = RTM_DELNEIGH;
+		}
 	}
 
 	struct ether_addr *mac = ether_aton(lladdr);
 	{
-		struct cache_fdb_entry* entry = get_fdb_entry((uint8_t*) mac, bridgeifname);
+		struct cache_fdb_entry* entry = get_fdb_entry((uint8_t*) mac, bridgeifname, ifidx);
 		switch (type) {
 			case RTM_DELNEIGH:
 				if (entry) {
-					eprintf(DEBUG_GENERAL, "delete neigh %s on %s on %s", lladdr, bridgeifname, linkifname);
+					eprintf(DEBUG_GENERAL, "delete neigh %s on %s on %s", lladdr, (bridgeifname ? bridgeifname : "NULL"), (linkifname ? linkifname : "NULL"));
 					entry->enabled = 0;
 				}
 			break;
 			case RTM_NEWNEIGH:
-				eprintf(DEBUG_GENERAL, "add neigh %s on %s on %s", lladdr, bridgeifname, linkifname);
+				assert(bridgeifname);
+				eprintf(DEBUG_GENERAL, "add neigh %s on %s on %s", lladdr, (bridgeifname ? bridgeifname : "NULL"), (linkifname ? linkifname : "NULL"));
 				if (!entry)
-					add_fdb_entry((uint8_t*) mac, bridgeifname, 1);
+					add_fdb_entry((uint8_t*) mac, bridgeifname, 1, ifidx);
 				else
 					entry->enabled = 1;
 			break;
@@ -963,14 +979,33 @@ static void obj_input_route(struct nl_object *obj, void *arg)
 out2:
 		eprintf(DEBUG_NEIGH, "mysql completed\n");
 	}
-#endif
+#endif /* MYSQL */
 out:
 	if (link)
 		rtnl_link_put(link);
 	if (bridge)
 		rtnl_link_put(bridge);
 }
-#endif
+
+static void obj_input_route(struct nl_object *obj, void *arg)
+{
+//	eprintf(DEBUG_NEIGH,  "obj_input_route...\n");
+
+	int type = nl_object_get_msgtype(obj);
+	switch (type) {
+	case RTM_NEWNEIGH:
+	case RTM_DELNEIGH:
+		obj_input_neigh(type, (struct rtnl_neigh *) obj);
+		break;
+	case RTM_DELLINK:
+		obj_input_dellink((struct rtnl_link *) obj);
+		break;
+	default:
+		eprintf(DEBUG_NEIGH,  "type %d != RTM_NEWNEIGH (%d), RTM_DELNEIGH (%d), RTM_NEWLINK (%d), RTM_DELLINK (%d) ignore\n", type, RTM_NEWNEIGH, RTM_DELNEIGH, RTM_NEWLINK, RTM_DELLINK);
+		break;
+	}
+}
+#endif /* ROAMING */
 
 static int event_input_nflog(struct nl_msg *msg, void *arg)
 {
@@ -1064,7 +1099,7 @@ static void handle_udp_message(char* buf, int recvlen) {
 		return;
 	}
 	/* check if in fdb, else exit */
-	struct cache_fdb_entry* fdb_entry = get_fdb_entry((uint8_t*) mac, ifname);
+	struct cache_fdb_entry* fdb_entry = get_fdb_entry((uint8_t*) mac, ifname, 0);
 	if (!fdb_entry || !fdb_entry->enabled) {
 		return;
 	}
@@ -1088,7 +1123,7 @@ int main(int argc, char *argv[])
 {
 	openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 
-	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 795 2013-05-16 16:38:33Z mbr $\n");
+	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 806 2013-05-18 14:50:49Z mbr $\n");
 	/* parse args */
 	int c;
      
@@ -1196,6 +1231,11 @@ int main(int argc, char *argv[])
 
         if (nl_socket_add_membership(nf_sock_route, RTNLGRP_NEIGH)) {
 		eprintf(DEBUG_ERROR, "cannot bind to GRPNEIGH: %s\n", strerror(errno));
+		exit(254);
+	}
+
+        if (nl_socket_add_membership(nf_sock_route, RTNLGRP_LINK)) {
+		eprintf(DEBUG_ERROR, "cannot bind to GRPLINK: %s\n", strerror(errno));
 		exit(254);
 	}
 
