@@ -25,31 +25,10 @@
  *      moves from backbone to local port.
  *      (Sent upstream)
  * Patch:
-*/
- // --- linux-3.8.3/net/bridge/br_fdb.c.orig        2013-04-15 11:21:51.638963668 +0200
- // +++ linux-3.8.3/net/bridge/br_fdb.c     2013-04-15 11:23:55.941166319 +0200
- // @@ -416,6 +416,7 @@ void br_fdb_update(struct net_bridge *br
- //  {
- //         struct hlist_head *head = &br->hash[br_mac_hash(addr)];
- //         struct net_bridge_fdb_entry *fdb;
- // +       struct net_bridge_port *origsrc;
- //  
- //         /* some users want to always flood. */
- //         if (hold_time(br) == 0)
- // @@ -436,8 +437,12 @@ void br_fdb_update(struct net_bridge *br
- //                                         source->dev->name);
- //                 } else {
- //                         /* fastpath: update of existing entry */
- // +                       origsrc = fdb->dst;
- //                         fdb->dst = source;
- //                         fdb->updated = jiffies;
- // +                       /* notify applications of modified slave device */
- // +                       if (origsrc != source)
- // +                               fdb_notify(br, fdb, RTM_NEWNEIGH);
- //                 }
- //         } else {
- //                 spin_lock(&br->hash_lock);
-/*
+ *  https://github.com/torvalds/linux/commit/b0a397fb352e65e3b6501dca9662617a18862ef1 in v3.10-rc1
+ *  (was: http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/net/bridge/br_fdb.c?id=b0a397fb352e65e3b6501dca9662617a18862ef1)
+ *  (original: https://patchwork.kernel.org/patch/2444531/)
+ *
  * EBTABLES FLOW: PREROUTING FILTER -> br_forward -> fdb_update [sends NEWNEIGH] -> FORWARD_FILTER -> ...
  *  --> so put your filter in ebtables FORWARDING chain
  *
@@ -1123,7 +1102,7 @@ int main(int argc, char *argv[])
 {
 	openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 
-	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 806 2013-05-18 14:50:49Z mbr $\n");
+	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 809 2013-05-19 14:45:40Z mbr $\n");
 	/* parse args */
 	int c;
      
