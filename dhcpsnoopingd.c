@@ -24,10 +24,10 @@
  * BUG: Kernel 3.8.3 does not report changes in bridge port - i.e. if an STA
  *      moves from backbone to local port.
  *      (Sent upstream)
- * Patch:
+ * Patch: https://patchwork.kernel.org/patch/2444531/
+ * Upstream has (does not work):
  *  https://github.com/torvalds/linux/commit/b0a397fb352e65e3b6501dca9662617a18862ef1 in v3.10-rc1
  *  (was: http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/net/bridge/br_fdb.c?id=b0a397fb352e65e3b6501dca9662617a18862ef1)
- *  (original: https://patchwork.kernel.org/patch/2444531/)
  *
  * EBTABLES FLOW: PREROUTING FILTER -> br_forward -> fdb_update [sends NEWNEIGH] -> FORWARD_FILTER -> ...
  *  --> so put your filter in ebtables FORWARDING chain
@@ -1102,7 +1102,7 @@ int main(int argc, char *argv[])
 {
 	openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 
-	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 809 2013-05-19 14:45:40Z mbr $\n");
+	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 818 2013-05-24 10:43:40Z mbr $\n");
 	/* parse args */
 	int c;
      
