@@ -1,0 +1,29 @@
+Considerations to IPv6 protection support:
+------------------------------------------
+
+EUID := derived from MAC
+
+ * use the bridge hook to add a permit for autoconf-addresses (based on EUID)
+   * will always break privacy extension
+   * should otherwise be fine with all autoconf clients
+ * permit all link local addresses or expect the client to use fe80::EUID
+   * might break some clients?
+ * require clients to use statefull DHCPv6
+   * static addresses just as with DHCPv4
+   * even temporary address spaces can be handed off by DHCP server to the client
+     -> so we could even have privacy extension on ??
+   * the client can use different DUID-Types (LL aka MAC, LLT aka MAC+Timestamp, EN aka vendor assigned), only two of them carry the MAC
+     * DUID-LL and DUID-LLT seem to be common
+     * ISC DHCP Server can use DUID-based MAC for host statement, though not officially supported
+     * others use the used link-local address or even the bare ethernet MAC, though that would not work with DHCP relaying
+   * a) using the source mac of DHCP request
+     * will always work fine but clients might be able to spoof DUID and thus getting permitted to use somebody elses IP
+   * b) dervice MAC for ebtabless from DUID
+     * will only work with LL and LLT based DUIDs
+   * check with rapid-option
+   * Prefix Delegation: DHCPv6 can be used to request prefixes to be *routed* by the client
+     * requires support on the router to actually route them ;)
+     * we could add ebtables rules for this as well, as they will look like temporary addresses rules
+ * Protocol: IPv6 UDP Port 546, 547
+   * Client->Server Request: <link-local>:546 to [ff02::1:2]:547
+   * Server->Client Reply: <link-local>:547 to <link-local>:546

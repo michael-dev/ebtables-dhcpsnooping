@@ -540,10 +540,7 @@ void got_packet(const u_char *packet, const int len, const char* ifname)
 			char sql_esc_bridge[1024];
 			mysql_real_escape_string(&mysql, sql_esc_bridge, ifname, MIN(strlen(ifname), sizeof(sql_esc_bridge) / 2 - 1));
 			char sql[2048];
-			snprintf(sql, sizeof(sql), "INSERT IGNORE INTO %s (bridge, mac, ip, validUntil) VALUES('%s', '%s', '%s', %d + UNIX_TIMESTAMP());", MYSQLLEASETABLE, sql_esc_bridge, ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), leaseTime);
-			mysql_query_errprint(sql);
-			/* update to mysql */
-			snprintf(sql, sizeof(sql), "UPDATE %s SET validUntil = %d + UNIX_TIMESTAMP() WHERE bridge = '%s' AND mac = '%s' AND ip = '%s';", MYSQLLEASETABLE, leaseTime, sql_esc_bridge, ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip));
+			snprintf(sql, sizeof(sql), "INSERT INTO %s (bridge, mac, ip, validUntil) VALUES('%s', '%s', '%s', %d + UNIX_TIMESTAMP()) ON DUPLICATE KEY UPDATE validUntil = %d + UNIX_TIMESTAMP();", MYSQLLEASETABLE, sql_esc_bridge, ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), leaseTime, leaseTime);
 			mysql_query_errprint(sql);
 		}
 #endif
@@ -979,6 +976,8 @@ static void obj_input_route(struct nl_object *obj, void *arg)
 	case RTM_DELLINK:
 		obj_input_dellink((struct rtnl_link *) obj);
 		break;
+	case RTM_NEWLINK:
+		break;
 	default:
 		eprintf(DEBUG_NEIGH,  "type %d != RTM_NEWNEIGH (%d), RTM_DELNEIGH (%d), RTM_NEWLINK (%d), RTM_DELLINK (%d) ignore\n", type, RTM_NEWNEIGH, RTM_DELNEIGH, RTM_NEWLINK, RTM_DELLINK);
 		break;
@@ -1102,7 +1101,7 @@ int main(int argc, char *argv[])
 {
 	openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 
-	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 818 2013-05-24 10:43:40Z mbr $\n");
+	fprintf(stderr, "dhcpsnoopingd version $Id: dhcpsnoopingd.c 881 2013-07-05 09:06:48Z mbr $\n");
 	/* parse args */
 	int c;
      

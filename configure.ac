@@ -4,12 +4,14 @@
 AC_PREREQ([2.50])
 AC_INIT([dhcpsnoopingd], [0.2])
 AC_CONFIG_SRCDIR([dhcpsnoopingd.c])
+AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE
 AC_CONFIG_HEADER([config.h])
 
 # Checks for programs.
 AC_PROG_CC
 AC_LANG(C)
+GCC_STACK_PROTECTOR
 
 PKG_CHECK_MODULES(LIBNL, libnl-3.0)
 AC_SUBST(LIBNL_CFLAGS)
