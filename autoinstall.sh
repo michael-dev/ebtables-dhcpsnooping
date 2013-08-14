@@ -5,6 +5,6 @@ aclocal
 autoconf
 autoreconf -fvi
 automake --add-missing
-./configure --prefix=/tmp/usr --enable-mysql --enable-roaming
+./configure --prefix=/tmp/usr --enable-mysql --enable-roaming --enable-debug
 make
 

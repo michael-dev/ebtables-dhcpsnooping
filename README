@@ -49,3 +49,48 @@ of /etc/mysql/[fembot,my].cnf.
 SIGALARM triggers clearing expires entries.
 SIGUSR1 triggers dumping cache tables.
 
+ebtables example
+----------------
+
+GWMAC=00:00:00:00:00:01
+DHCPMAC=00:00:00:00:00:02
+BRIDGE=br*
+WLAN=wlan*
+
+ebtables -F FORWARD
+-- protect DHCP MAC and GW MAC - they not in WLAN
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE -s $GWMAC -j DROP
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE -s $DHCPMAC -j DROP
+
+-- IP source address filter
+ebtables -N dhcpsnooping -P DROP || true
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE --proto ipv6 -j dhcpsnooping
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE --proto ipv4 -j dhcpsnooping
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE --proto arp -j dhcpsnooping
+
+ebtables -A dhcpsnooping --proto ipv6 --proto ipv6 --ip6-source-address fe80::/64 -j RETURN
+ebtables -A dhcpsnooping --proto ipv4 --proto ipv4 --ip-src-address 0.0.0.0 -j RETURN
+ebtables -A dhcpsnooping --proto arp --proto arp --arp-src-address 0.0.0.0 -j RETURN
+
+-- = send DHCPv4 and DHCPv6 and RA packets to dhcpsnoopingd =
+-- DHCPv4
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE \
+         --proto ipv4 --ip-protocol UDP --ip-source-port 68 --ip-destination-port 67 --nflog-group 1 -j ACCEPT
+ebtables -A FORWARD -s $DHCPMAC --logical-in $BRIDGE \
+         --proto ipv4 --ip-protocol UDP --ip-source-port 67 --ip-destination-port 68 --nflog-group 1 -j ACCEPT
+ebtables -A FORWARD --logical-in $BRIDGE \
+         --proto ipv4 --ip-protocol UDP --ip-source-port 67 --ip-destination-port 68 -j DROP
+-- DHCPv6
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE \
+         --proto ipv6 --ip6-protocol UDP --ip6-source-port 546 --ip6-destination-port 547 --nflog-group 1 -j ACCEPT
+ebtables -A FORWARD -s $DHCPMAC --logical-in $BRIDGE \
+         --proto ipv6 --ip6-protocol UDP --ip6-source-port 547 --ip6-destination-port 546 --nflog-group 1 -j ACCEPT
+ebtables -A FORWARD --logical-in $BRIDGE \
+         --proto ipv6 --ip6-protocol UDP --ip6-source-port 547 --ip6-destination-port 546 -j DROP
+-- RA
+ebtables -A FORWARD -s $GWMAC --logical-in $BRIDGE \
+         --proto ipv6 --ip6-protocol ipv6-icmp --ip6-icmp-type router-advertisement --nflog-group 1 -j ACCEP
+ebtables -A FORWARD --logical-in $BRIDGE \
+         --proto ipv6 --ip6-protocol ipv6-icmp --ip6-icmp-type router-advertisement -j DROP
+
+

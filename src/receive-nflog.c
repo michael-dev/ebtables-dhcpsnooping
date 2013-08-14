@@ -1,0 +1,93 @@
+#include "config.h"
+#include "event.h"
+#include "debug.h"
+
+#include <sys/types.h>
+#include <net/if.h>
+#define _LINUX_IF_H
+#include <linux/netfilter/nfnetlink_log.h>
+#include <netlink/netfilter/nfnl.h>
+#include <netlink/netfilter/log.h>
+#include <netlink/netfilter/log_msg.h>
+#include <netlink/msg.h>
+#include <errno.h>
+
+void obj_input_nflog(struct nl_object *obj, void *arg)
+{
+        struct nfnl_log_msg *msg = (struct nfnl_log_msg *) obj;
+	char buf[IF_NAMESIZE];
+
+	uint32_t  indev = nfnl_log_msg_get_indev(msg);
+	uint32_t  outdev = nfnl_log_msg_get_outdev(msg);
+
+	if (indev != outdev) {
+		eprintf(DEBUG_NFLOG,  "obj_input...err indev!=outdev\n");
+		return;
+	}
+	if_indextoname(indev, buf);
+
+	uint16_t hwproto = ntohs(nfnl_log_msg_get_hwproto(msg));
+	int len = 0;
+	const u_char* data = (const u_char*) nfnl_log_msg_get_payload(msg, (int*) &len);
+
+	eprintf(DEBUG_NFLOG,  "obj_input...packet received\n");
+	cb_call_packet_cb(hwproto, data, len, buf);
+}
+
+int event_input_nflog(struct nl_msg *msg, void *arg)
+{
+        if (nl_msg_parse(msg, &obj_input_nflog, NULL) < 0)
+                eprintf(DEBUG_NFLOG,  "<<EVENT:nflog>> Unknown message type\n");
+        return NL_STOP;
+}
+
+void nflog_receive(int s, void* ctx)
+{
+	struct nl_sock *nf_sock_nflog = (struct nl_sock *) ctx;
+	nl_recvmsgs_default(nf_sock_nflog);
+}
+
+static __attribute__((constructor)) void nflog_init()
+{
+	eprintf(DEBUG_ERROR, "listen to NFLOG packets for group %d\n", NFLOG_GROUP);
+	/* connect to netfilter / NFLOG */
+	struct nl_sock *nf_sock_nflog;
+	struct nfnl_log *log;
+	int nffd;
+	
+	nf_sock_nflog = nl_socket_alloc();
+	if (nf_sock_nflog < 0) {
+		eprintf(DEBUG_ERROR, "cannot alloc socket: %s\n", strerror(errno));
+		exit(254);
+	}
+	nl_socket_disable_seq_check(nf_sock_nflog);
+	nl_socket_modify_cb(nf_sock_nflog, NL_CB_VALID, NL_CB_CUSTOM, event_input_nflog, NULL);
+
+	if (nl_connect(nf_sock_nflog, NETLINK_NETFILTER) < 0) {
+		eprintf(DEBUG_ERROR, "cannot connect: %s\n", strerror(errno));
+		exit(254);
+	}
+
+	nfnl_log_pf_unbind(nf_sock_nflog, AF_BRIDGE);
+	if (nfnl_log_pf_bind(nf_sock_nflog, AF_BRIDGE) < 0) {
+		eprintf(DEBUG_ERROR, "cannot bind: %s\n", strerror(errno));
+		exit(254);
+	}
+
+	log = nfnl_log_alloc();
+	nfnl_log_set_group(log, NFLOG_GROUP);
+
+	nfnl_log_set_copy_mode(log, NFNL_LOG_COPY_PACKET);
+
+	nfnl_log_set_copy_range(log, 0xFFFF);
+
+	if (nfnl_log_create(nf_sock_nflog, log) < 0) {
+		eprintf(DEBUG_ERROR, "cannot create log: %s\n", strerror(errno));
+		exit(254);
+	}
+
+	nffd = nl_socket_get_fd(nf_sock_nflog);
+	eprintf(DEBUG_ERROR, "nflog socket %d\n", nffd);
+	
+	cb_add_handle(nffd, nf_sock_nflog, nflog_receive);
+}
