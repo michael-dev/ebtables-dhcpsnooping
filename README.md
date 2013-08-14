@@ -51,7 +51,7 @@ In order two know for which STAs ebtables rules shall be installed, the daemon
 tracks the locally connected STAs. For more generic use, this is done using the
 kernel bridge code. Currently, this needs some simple kernel patching, as
 mostly STAs will just switch between the bridge ports "wlan+" and "uplink+".
-See dhcpsnoopingd.c for details.
+See patch/ for details.
 
 Notification to other instances
 -------------------------------

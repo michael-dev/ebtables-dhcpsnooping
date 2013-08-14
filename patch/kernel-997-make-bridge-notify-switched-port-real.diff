@@ -1,0 +1,23 @@
+--- a/net/bridge/br_fdb.c	2013-04-15 11:21:51.638963668 +0200
++++ b/net/bridge/br_fdb.c	2013-04-15 11:23:55.941166319 +0200
+@@ -453,6 +453,7 @@ void br_fdb_update(struct net_bridge *br
+ {
+ 	struct hlist_head *head = &br->hash[br_mac_hash(addr, vid)];
+ 	struct net_bridge_fdb_entry *fdb;
++	struct net_bridge_port *origsrc;
+ 
+	/* some users want to always flood. */
+	if (hold_time(br) == 0)
+@@ -516,8 +517,12 @@ void br_fdb_update(struct net_bridge *br
+ 					source->dev->name);
+ 		} else {
+ 			/* fastpath: update of existing entry */
++			origsrc = fdb->dst;
+ 			fdb->dst = source;
+ 			fdb->updated = jiffies;
++			/* notify applications of modified slave device */
++			if (origsrc != source)
++				fdb_notify(br, fdb, RTM_NEWNEIGH);
+ 		}
+ 	} else {
+ 		spin_lock(&br->hash_lock);
