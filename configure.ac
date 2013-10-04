@@ -79,6 +79,11 @@ AC_ARG_ENABLE(mysql, [  --enable-mysql          enable MySQL support], [
 # Checks for header files.
 AC_HEADER_STDC
 
+# libnet.h
+AC_CHECK_HEADER([libnet.h],
+                [AC_DEFINE([HAVE_LIBNET_H], [1], [Define to 1 if you have <libnet.h>.])],
+                [AC_MSG_ERROR([missing 'libnet.h', please install libnet package])])
+
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
