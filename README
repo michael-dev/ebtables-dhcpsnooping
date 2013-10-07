@@ -4,7 +4,7 @@ General
 This daemon parses dhcp ack and request messages and inserts ebtables ACCEPT
 matching source IPv4 address + source MAC rules into the dhcpsnooping chain for
 all authenticated stations. These rules get removed once the lease times out.
-The packages are fed into the daemon using netfilter log (nflog),
+The packets are fed into the daemon using netfilter log (nflog),
 the default group id is 1.
 
 To use this daemon, you'll need to have
@@ -16,7 +16,7 @@ To use this daemon, you'll need to have
   - an ebtables rule filtering all IPv4 and ARP incoming traffic by
     forwaring it to the dhcpsnooping chain, which drops packets by default.
 
-To actually provide protection you neet to ensure that to faked dhcp acks
+To actually provide protection you neet to ensure that no faked dhcp acks
 are copied into the daemon and that all illegal traffic actually gets dropped.
 You should also ensure that the mac address cannot be spoofed to prevent faked
 dhcp acks and deny of service attacks.
@@ -28,9 +28,9 @@ When an STA roams around, it will generate an RTM_NEWNEIGH message when it
 is first seen on the target APs bridge. This is used to query the database
 for leases an add them, so the STAs doesn't need to repeat the DHCP handshake.
 
-Attentention: This needs a kernel patch, so see patch/
-until its  upstream. Otherwise the AP won't learn when the STA moves from backbone
-to local wlan device on the bridge.
+Attentention: This needs a kernel patch, so see patch folder until it is
+applied upstream. Otherwise the AP won't learn when the STA moves from
+backbone to local wlan device on the bridge.
 
 Further, the dhcpsnooping daemons inform each other using UDP broadcasts about
 DHCP changes, this triggers creating ebtables rules when an STA changes its IP.
@@ -38,12 +38,12 @@ DHCP changes, this triggers creating ebtables rules when an STA changes its IP.
 Database support:
 -----------------
 
-In order for roaming to work when the origination AP powers down, dhcpsnooping
+In order for roaming to work when the source AP powers down, dhcpsnooping
 caches its leases in a central MySQL server (should be redundant). When
 such a database is configured, incoming UDP notifications get filtered by
 checking with the database list of leases.
 
-Hostname and Credentials get configured using into client and dhcpsnooping group
+Hostname and credentials get configured using into client and dhcpsnooping group
 of /etc/mysql/[fembot,my].cnf.
 
 SIGALARM triggers clearing expires entries.
