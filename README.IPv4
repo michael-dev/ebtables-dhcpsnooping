@@ -1,4 +1,10 @@
 Security considerations in IPv4
 -------------------------------
 
-The server uses the chaddr field in the DHCP request as the MAC, so dhcpsnoopingd creates ebtables rules based on this. Though, the client an fill arbitrary addresses in there; but the DHCP server is likely to notice - and it would not help the client (i.e. only incoming packets get source mac filtered and only accept rules are added), especially in wifi, where the actually used source mac is secured by WPA.
+The server uses the chaddr field in the DHCP request as the MAC, so
+dhcpsnoopingd creates ebtables rules based on this. Though, the
+client can fill arbitrary addresses in there; but the DHCP server
+is likely to notice - and it would not help the client (i.e. only
+incoming packets get source mac filtered and only accept rules are added),
+especially in wifi, where the actually used source mac is secured by WPA.
+

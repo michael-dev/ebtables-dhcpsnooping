@@ -1,6 +1,8 @@
 Considerations to IPv6 protection support:
 ------------------------------------------
 
+Status: Not Implemented.
+
 EUID := derived from MAC
 
  * use the bridge hook to add a permit for autoconf-addresses (based on EUID)
