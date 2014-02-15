@@ -1,50 +1,21 @@
-/*
- * This program reads dhcp ack packets from nflog using libnl and creates a
- * temporary table of all authenticated MAC/IP pairs + their lifetime.
- * When a new entry is added, an ebtables accept rule is added,
- * when the entry expires, it is removed.
- * DHCP requests are used to filter dhcp broadcast acks for unseen dhcp requests,
- * i.e. non-local stations.
+/**
+ *  This file is part of ebtables-dhcpsnoopingd.
  *
- *	This library is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation version 3 of the License.
+ *  Ebtables-dhcpsnoopingd is free software: you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
  *
- *  gcc -I /usr/include/libnl3/ dhcpsnoopingd.c -l nl-3 -l nl-genl-3 -l nl-nf-3 -l nl-route-3 -o dhcpsnoopingd
+ *  Ebtables-dhcpsnoopingd is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- * Roaming:
- * When using on APs, the STAs can roam around - so the DHCP request/reply pair
- * is seen on a different AP that the STA is then connected to.
- * A list of current STAs is derived from NEWNEIGH/DELNEIGH messages from
- * kernel bridge and dhcp replys that change the lease that are broadcastet
- * in the local network. See the defines below to change the network addresses.
- * Note: The roaming support only updates leases for STAs that are currently
- * marked as local by kernel bridge - i.e. they appear on a bridge port named 
- * as given below.
- * BUG: Kernel 3.8.3 does not report changes in bridge port - i.e. if an STA
- *      moves from backbone to local port.
- *      (Sent upstream)
- * Patch: https://patchwork.kernel.org/patch/2444531/
- * Upstream has (does not work):
- *  https://github.com/torvalds/linux/commit/b0a397fb352e65e3b6501dca9662617a18862ef1 in v3.10-rc1
- *  (was: http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/net/bridge/br_fdb.c?id=b0a397fb352e65e3b6501dca9662617a18862ef1)
+ *  You should have received a copy of the GNU General Public License
+ *  along with ebtables-dhcpsnoopingd.
+ *  If not, see <http://www.gnu.org/licenses/>.
  *
- * EBTABLES FLOW: PREROUTING FILTER -> br_forward -> fdb_update [sends NEWNEIGH] -> FORWARD_FILTER -> ...
- *  --> so put your filter in ebtables FORWARDING chain
- *
- * MySQL aka MariaDB:
- * This makes all leases to be stored in a central MySQL db and ist most useful
- * to enhance roaming. When roaming occurs after a DHCP lease has been obtained,
- * database access can be used to fetch and install the current lease.
- * Expired leases are pruned from DB.
- * Restrictions:
- *  * The bridge-names need to be the same on all APs.
- *
- * Copyright (c) 2012 Michael Braun <michael-dev@fami-braun.de>
- * forked from nf-log.c (libnl):
- *   Copyright (c) 2003-2008 Thomas Graf <tgraf@suug.ch>
- *   Copyright (c) 2007 Philip Craig <philipc@snapgear.com>
- *   Copyright (c) 2007 Secure Computing Corporation
+ *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
 #include "config.h"

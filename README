@@ -52,6 +52,13 @@ SIGUSR1 triggers dumping cache tables.
 ebtables example
 ----------------
 
+Packets will flow:
+  PREROUTING FILTER
+    -> br_forward
+    -> fdb_update [sends NEWNEIGH]
+    -> FORWARD_FILTER -> ...
+So put your filter in ebtables FORWARDING chain.
+
 GWMAC=00:00:00:00:00:01
 DHCPMAC=00:00:00:00:00:02
 BRIDGE=br*

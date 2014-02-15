@@ -1,3 +1,11 @@
+Add notification (NEWNEIGH) when fdb-entry (MAC) moves between switchports.
+Not present until at least 3.14-rc1.
+
+Patch: https://patchwork.kernel.org/patch/2444531/
+Upstream has (does not work):
+ https://github.com/torvalds/linux/commit/b0a397fb352e65e3b6501dca9662617a18862ef1 in v3.10-rc1
+ (was: http://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/net/bridge/br_fdb.c?id=b0a397fb352e65e3b6501dca9662617a18862ef1)
+
 --- a/net/bridge/br_fdb.c	2013-04-15 11:21:51.638963668 +0200
 +++ b/net/bridge/br_fdb.c	2013-04-15 11:23:55.941166319 +0200
 @@ -453,6 +453,7 @@ void br_fdb_update(struct net_bridge *br
