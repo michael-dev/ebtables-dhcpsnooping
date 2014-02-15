@@ -158,6 +158,7 @@ void event_runloop() {
 		if (signalCalled > 0) {
 			for (struct signal_cb_list_entry* entry = signal_cb_list; entry; entry = entry->next) {
 				if (entry->called > 0) {
+					entry->called = 0;
 					entry->cb(entry->s);
 				}
 			}
