@@ -24,7 +24,7 @@ are copied into the daemon and that all illegal traffic actually gets dropped.
 You should also ensure that the mac address cannot be spoofed to prevent faked
 dhcp acks and deny of service attacks.
 
-SIGALARM triggers clearing expires entries.
+SIGALARM is used internally for clearing expires entries.
 SIGUSR1 triggers dumping cache tables.
 
 Roaming support
