@@ -101,7 +101,7 @@ void ack_update(ack_update_cb cb, void* ctx) {
 		cb(entry, ctx);
 		if (entry->expiresAt != expiresAt) {
 			cb_del_timer(entry, check_expired_ack);
-			cb_add_timer(expiresAt - time(NULL), 0, entry, check_expired_ack);
+			cb_add_timer(entry->expiresAt - time(NULL), 0, entry, check_expired_ack);
 		}
 	}
 }
