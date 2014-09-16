@@ -23,6 +23,7 @@
 #include "dhcp.h"
 #include "debug.h"
 #include "event.h"
+#include "timer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -64,7 +65,7 @@ struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, co
 	return entry;
 }
 
-void check_expired_req(int s)
+void check_expired_req(void *ctx)
 {
 	uint32_t now = time(NULL);
 	struct cache_req_entry* entry = globalReqCache;
@@ -94,14 +95,14 @@ void dump_req(int s)
 	uint32_t now = time(NULL);
 	struct cache_req_entry* entry = globalReqCache;
 	while (entry != NULL) {
-		eprintf(DEBUG_GENERAL,  "req: MAC: %s BRIDGE: %s expires in %d\n" , ether_ntoa((struct ether_addr *)entry->mac), entry->bridge, (int) entry->expiresAt - (int) now);
+		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "req: MAC: %s BRIDGE: %s expires in %d" , ether_ntoa((struct ether_addr *)entry->mac), entry->bridge, (int) entry->expiresAt - (int) now);
 		entry = entry->next;
 	}
 }
 
 static __attribute__((constructor)) void dhcp_req_init()
 {
-	cb_add_signal(SIGALRM, check_expired_req);
+	cb_add_timer(PRUNE_INTERVAL, 1, NULL, check_expired_req);
 	cb_add_signal(SIGUSR1, dump_req);
 	add_is_local_hook(get_req_entry_wrp);
 }

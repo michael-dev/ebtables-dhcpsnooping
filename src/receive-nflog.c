@@ -41,7 +41,7 @@ void obj_input_nflog(struct nl_object *obj, void *arg)
 	uint32_t  outdev = nfnl_log_msg_get_outdev(msg);
 
 	if (indev != outdev) {
-		eprintf(DEBUG_NFLOG,  "obj_input...err indev!=outdev\n");
+		eprintf(DEBUG_NFLOG,  "obj_input...err indev!=outdev");
 		return;
 	}
 	if_indextoname(indev, buf);
@@ -50,26 +50,30 @@ void obj_input_nflog(struct nl_object *obj, void *arg)
 	int len = 0;
 	const u_char* data = (const u_char*) nfnl_log_msg_get_payload(msg, (int*) &len);
 
-	eprintf(DEBUG_NFLOG,  "obj_input...packet received\n");
+	eprintf(DEBUG_NFLOG,  "obj_input...packet received");
 	cb_call_packet_cb(hwproto, data, len, buf);
 }
 
 int event_input_nflog(struct nl_msg *msg, void *arg)
 {
         if (nl_msg_parse(msg, &obj_input_nflog, NULL) < 0)
-                eprintf(DEBUG_NFLOG,  "<<EVENT:nflog>> Unknown message type\n");
+                eprintf(DEBUG_NFLOG,  "<<EVENT:nflog>> Unknown message type");
         return NL_STOP;
 }
 
 void nflog_receive(int s, void* ctx)
 {
+	int ret;
 	struct nl_sock *nf_sock_nflog = (struct nl_sock *) ctx;
-	nl_recvmsgs_default(nf_sock_nflog);
+	ret = nl_recvmsgs_default(nf_sock_nflog);
+	if (ret < 0) {
+		eprintf(DEBUG_ERROR, "receiving nflog socket %d failed %s", s, strerror(errno));
+	}
 }
 
 static __attribute__((constructor)) void nflog_init()
 {
-	eprintf(DEBUG_ERROR, "listen to NFLOG packets for group %d\n", NFLOG_GROUP);
+	eprintf(DEBUG_ERROR, "listen to NFLOG packets for group %d", NFLOG_GROUP);
 	/* connect to netfilter / NFLOG */
 	struct nl_sock *nf_sock_nflog;
 	struct nfnl_log *log;
@@ -77,20 +81,19 @@ static __attribute__((constructor)) void nflog_init()
 	
 	nf_sock_nflog = nl_socket_alloc();
 	if (nf_sock_nflog < 0) {
-		eprintf(DEBUG_ERROR, "cannot alloc socket: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "cannot alloc socket: %s", strerror(errno));
 		exit(254);
 	}
 	nl_socket_disable_seq_check(nf_sock_nflog);
 	nl_socket_modify_cb(nf_sock_nflog, NL_CB_VALID, NL_CB_CUSTOM, event_input_nflog, NULL);
 
 	if (nl_connect(nf_sock_nflog, NETLINK_NETFILTER) < 0) {
-		eprintf(DEBUG_ERROR, "cannot connect: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "cannot connect: %s", strerror(errno));
 		exit(254);
 	}
 
-	nfnl_log_pf_unbind(nf_sock_nflog, AF_BRIDGE);
 	if (nfnl_log_pf_bind(nf_sock_nflog, AF_BRIDGE) < 0) {
-		eprintf(DEBUG_ERROR, "cannot bind: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "cannot bind: %s", strerror(errno));
 		exit(254);
 	}
 
@@ -102,12 +105,16 @@ static __attribute__((constructor)) void nflog_init()
 	nfnl_log_set_copy_range(log, 0xFFFF);
 
 	if (nfnl_log_create(nf_sock_nflog, log) < 0) {
-		eprintf(DEBUG_ERROR, "cannot create log: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "cannot create log: %s", strerror(errno));
 		exit(254);
 	}
 
 	nffd = nl_socket_get_fd(nf_sock_nflog);
-	eprintf(DEBUG_ERROR, "nflog socket %d\n", nffd);
+	if (nffd < 0) {
+		eprintf(DEBUG_ERROR, "nflog socket %d is error", nffd);
+		exit(254);
+	}
+	eprintf(DEBUG_ERROR, "nflog socket %d", nffd);
 	
 	cb_add_handle(nffd, nf_sock_nflog, nflog_receive);
 }

@@ -73,7 +73,7 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	int dhcp_mode = 0;
 
 	if (ptype != ETH_P_IP) {
-		eprintf(DEBUG_DHCP,  "%s:%d packet is not IP\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP,  "packet is not IP");
 		return;
 	}
 
@@ -82,11 +82,11 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	/** check IPv4 **/
 	struct iphdr* ip = ((struct iphdr*) packet);
 	if (((u_char*) ip) + sizeof(struct iphdr) >= packet_end) {
-		eprintf(DEBUG_DHCP, "%s:%d packet short\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "packet is short of ip header");
 		return;
 	}
 	if (ip->protocol != IPPROTO_UDP) {
-		eprintf(DEBUG_DHCP, "%s:%d not udp\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "packet is not udp");
 		return;
 	}
 	struct in_addr* saddr = (struct in_addr*) &ip->saddr;
@@ -94,27 +94,27 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	/** check UDP ports for  **/
 	struct udphdr *udp = (struct udphdr *) ( (u_char *) ip + sizeof(struct iphdr) );
 	if (((u_char*) udp) + sizeof(struct udphdr) >= packet_end) {
-		eprintf(DEBUG_DHCP, "%s:%d packet short\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "packet is short of udp header");
 		return;
 	}
-	eprintf(DEBUG_DHCP,  "source %s:%d\n", inet_ntoa(*saddr), ntohs(udp->source));
-	eprintf(DEBUG_DHCP,  "dest %s:%d\n", inet_ntoa(*daddr), ntohs(udp->dest));
+	eprintf(DEBUG_DHCP,  "source %s:%d", inet_ntoa(*saddr), ntohs(udp->source));
+	eprintf(DEBUG_DHCP,  "dest %s:%d", inet_ntoa(*daddr), ntohs(udp->dest));
 	if (udp->source == htons(67)) {
 		dhcp_mode = c_dhcp_ack;
 	} else if (udp->source == htons(68)) {
 		dhcp_mode = c_dhcp_req;
 	} else {
-		eprintf(DEBUG_DHCP, "%s:%d not udp sport 67-68\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "not udp sport 67-68");
 		return;
 	}
 	if (!((udp->dest == htons(68) && dhcp_mode == c_dhcp_ack) || (udp->dest == htons(67) && dhcp_mode == c_dhcp_req))) {
-		eprintf(DEBUG_DHCP, "%s:%d not udp dport 67/68\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "not udp dport 67/68");
 		return;
 	}
 	/** check DHCP **/
 	struct libnet_dhcpv4_hdr* dhcp = (struct libnet_dhcpv4_hdr*) ((u_char*) udp + sizeof(struct udphdr));
 	if (((u_char*) dhcp) + sizeof(struct libnet_dhcpv4_hdr) >= packet_end) {
-		eprintf(DEBUG_DHCP, "%s:%d packet short\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "packet short of bootp header");
 		return;
 	}
 	if (!(
@@ -122,19 +122,19 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	   || (dhcp->dhcp_opcode == htons(LIBNET_DHCP_REQUEST) && dhcp_mode == c_dhcp_req)
 	     )
 	  ) {
-		eprintf(DEBUG_DHCP, "%s:%d dhcp no reply/request matching ports\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "dhcp no reply/request matching ports");
 		return;
 	}
 	if (dhcp->dhcp_htype != 0x01) {
-		eprintf(DEBUG_DHCP, "%s:%d dhcp invalid htype\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "dhcp invalid htype");
 		return;
 	}
 	if (dhcp->dhcp_hlen != ETH_ALEN) {
-		eprintf(DEBUG_DHCP, "%s:%d dhcp invalid hlen\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "dhcp invalid hlen");
 		return;
 	}
     	if (dhcp->dhcp_magic != htonl(DHCP_MAGIC)) {
-		eprintf(DEBUG_DHCP, "%s:%d dhcp missing magic\n", __FILE__, __LINE__);
+		eprintf(DEBUG_DHCP, "dhcp missing magic");
 		return;
 	}
 	// fields
@@ -190,23 +190,23 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	   	char* mode = "UNKNOWN";
 		if (dhcp_mode == c_dhcp_req) mode = "c2s";
 		if (dhcp_mode == c_dhcp_ack) mode = "s2c";
-		eprintf(DEBUG_DHCP, "%s:%d dhcp no ack from server / no request-release from client / missing lease time\n", __FILE__, __LINE__);
-		eprintf(DEBUG_DHCP, "msgtype = %s, mode = %s, leaseTime = %d\n", dhcpmsgtypestr, mode, leaseTime);
+		eprintf(DEBUG_DHCP, "dhcp no ack from server / no request-release from client / missing lease time");
+		eprintf(DEBUG_DHCP, "msgtype = %s, mode = %s, leaseTime = %d", dhcpmsgtypestr, mode, leaseTime);
 		return;
 	}
 
 	if (dhcpmsgtype == LIBNET_DHCP_MSGACK) {
-		eprintf(DEBUG_DHCP,  "DHCP ACK MAC: %s IP: %s BRIDGE: %s LeaseTime: %d\n" , ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), ifname, leaseTime);
+		eprintf(DEBUG_DHCP| DEBUG_VERBOSE,  "DHCP ACK MAC: %s IP: %s BRIDGE: %s LeaseTime: %d" , ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), ifname, leaseTime);
 		if (tmp_yip == 0) {
-			eprintf(DEBUG_DHCP, "DHCP ACK IP 0.0.0.0 ignored\n");
+			eprintf(DEBUG_DHCP, "DHCP ACK IP 0.0.0.0 ignored");
 			return;
 		}
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGREQUEST) {
-		eprintf(DEBUG_DHCP,  "DHCP REQ MAC: %s BRIDGE: %s\n" , ether_ntoa((struct ether_addr *)mac), ifname);
+		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REQ MAC: %s BRIDGE: %s" , ether_ntoa((struct ether_addr *)mac), ifname);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGRELEASE) {
-		eprintf(DEBUG_DHCP,  "DHCP REL MAC: %s BRIDGE: %s\n" , ether_ntoa((struct ether_addr *)mac), ifname);
+		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REL MAC: %s BRIDGE: %s" , ether_ntoa((struct ether_addr *)mac), ifname);
 	} else {
-		eprintf(DEBUG_DHCP,  "ERROR - dhcp_mode is invalud\n");
+		eprintf(DEBUG_DHCP,  "ERROR - dhcp_mode is invalud");
 		return;
 	}
 
@@ -227,7 +227,7 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 		add_ack_entry_if_not_found(&yip, mac, ifname, expiresAt);
 		updated_lease(mac, &yip, ifname, expiresAt);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGACK) {
-		eprintf(DEBUG_DHCP,  " * unsoliciated DHCP ACK\n");
+		eprintf(DEBUG_DHCP,  " * unsoliciated DHCP ACK");
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGRELEASE) {
 		char str_ifname[IFNAMSIZ];
 		strncpy(str_ifname, ifname, IFNAMSIZ);
@@ -235,15 +235,15 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 		ack_update(upd, &tmp);
 		updated_lease(mac, &yip, ifname, -1);
 	} else {
-		eprintf(DEBUG_DHCP,  "ERR: invalid dhcp_mode\n");
+		eprintf(DEBUG_DHCP,  "ERR: invalid dhcp_mode");
 	}
 
-	eprintf(DEBUG_DHCP,  "DHCP ACK processing finished\n");
+	eprintf(DEBUG_DHCP,  "DHCP ACK processing finished");
 }
 
 static __attribute__((constructor)) void dhcpv4_init()
 {
-	eprintf(DEBUG_ERROR,  "register DHCPv4 handler\n");
+	eprintf(DEBUG_ERROR,  "register DHCPv4 handler");
 	cb_add_packet_cb(dhcpv4_got_packet);
 }
 

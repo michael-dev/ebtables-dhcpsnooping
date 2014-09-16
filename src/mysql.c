@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <mysql/mysql.h>
+#include <mysql/mysqld_error.h>
 #include <mysql/errmsg.h>
 #include <sys/stat.h>
 #include <netinet/ether.h>
@@ -57,12 +58,12 @@ int mysql_connected()
 
 	struct stat buf;
 	if (stat(mysql_config_file, &buf) != 0) {
-		eprintf(DEBUG_ERROR, "stat config file: %s\n", strerror(errno));
-		eprintf(DEBUG_GENERAL, "missing %s config file\n", mysql_config_file);
+		eprintf(DEBUG_ERROR, "stat config file: %s (%d)", strerror(errno), errno);
+		eprintf(DEBUG_GENERAL, "missing %s config file", mysql_config_file);
 		return connected;
 	}
 	if (!S_ISREG(buf.st_mode)) {
-		eprintf(DEBUG_GENERAL, "missing %s config file\n", mysql_config_file);
+		eprintf(DEBUG_GENERAL, "missing %s config file", mysql_config_file);
 		return connected;
 	}
 
@@ -73,12 +74,12 @@ int mysql_connected()
 	mysql_options(&mysql, MYSQL_READ_DEFAULT_FILE, mysql_config_file);
 	mysql_options(&mysql, MYSQL_READ_DEFAULT_GROUP, MYSQLGROUP);
 	if (mysql_real_connect(&mysql, NULL, NULL, NULL, MYSQLDB, 0, NULL, CLIENT_REMEMBER_OPTIONS) == NULL) {
-		eprintf(DEBUG_GENERAL,  "connection failed: %s\n", mysql_error(&mysql));
+		eprintf(DEBUG_ERROR,  "connection failed: %s", mysql_error(&mysql));
 		return connected;
 	}
 		
 	if (mysql_errno(&mysql)) {
-		eprintf(DEBUG_GENERAL,  "mysql error: %s\n", mysql_error(&mysql));
+		eprintf(DEBUG_ERROR,  "mysql error: %s", mysql_error(&mysql));
 		return connected;
 	}
 
@@ -89,18 +90,37 @@ int mysql_connected()
 
 int mysql_query_errprint(const char* sql) 
 {
+	int ret, err, retrycnt = 0;
+	const time_t start = time(NULL);
+
+retry:
 	if (!mysql_connected()) {
-		eprintf(DEBUG_GENERAL,  "mysql not connected, not running %s\n", sql);
+		eprintf(DEBUG_ERROR,  "mysql not connected, not running %s", sql);
 		return -1;
 	}
 
-	int ret = mysql_query(&mysql, sql);
-	int err = mysql_errno(&mysql);
+	ret = mysql_query(&mysql, sql);
+	err = mysql_errno(&mysql);
 	if (err)
-		eprintf(DEBUG_GENERAL,  "mysql error: %s\nmysql query %s\n\n", mysql_error(&mysql), sql);
-	if (err == CR_SERVER_GONE_ERROR) {
-		eprintf(DEBUG_GENERAL,  "mysql repeat query\n");
-		ret = mysql_query(&mysql, sql);
+		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "mysql error: %smysql query %s\n\n", mysql_error(&mysql), sql);
+	if (
+	   ((err == CR_SERVER_GONE_ERROR ) ||
+	    (err == CR_SERVER_LOST) ||
+	    (err == CR_SERVER_LOST_EXTENDED) ||
+	    (err == ER_LOCK_DEADLOCK) ||
+	    (err == ER_XA_RBTIMEOUT) ||
+	    (err == ER_XA_RBDEADLOCK) ||
+	    (err == ER_LOCK_WAIT_TIMEOUT)
+	   ) && (
+	     (retrycnt < 1000) ||
+	     (time(NULL) < start + 10 /*10s*/)
+	   )
+	   ) {
+		eprintf(DEBUG_GENERAL,  "mysql repeat query");
+		retrycnt++;
+		goto retry;
+	} else if(err) {
+		eprintf(DEBUG_ERROR, "mysql error (no retry) %s - mysql query %s", mysql_error(&mysql), sql);
 	}
 	return ret;
 }
@@ -112,6 +132,8 @@ void mysql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 	/* add to mysql */
 	if (!mysql_connected())
 		return;
+	
+	eprintf(DEBUG_VERBOSE, "sql: update lease: MAC: %s IP: %s VLAN: %s expiresAt: %d", ether_ntoa((struct ether_addr *)mac), inet_ntoa(*yip), ifname, expiresAt);
 
 	const uint32_t now =time(NULL);
 	char sql_esc_bridge[1024];
@@ -163,7 +185,7 @@ void mysql_update_local_ack(struct cache_ack_entry* entry, void* ctx)
 		return;
 
 	/* update mysql */
-	snprintf(sql, sizeof(sql), "DELETE FROM " MYSQLLEASETABLE " WHERE validUntil < UNIX_TIMESTAMP();");
+	snprintf(sql, sizeof(sql), "DELETE FROM " MYSQLLEASETABLE " WHERE validUntil < UNIX_TIMESTAMP()");
 	mysql_query_errprint(sql);
 
 	mysql_update_lease_from_sql(entry->bridge, entry->mac, &entry->ip, &entry->expiresAt);
@@ -174,7 +196,7 @@ void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* m
 	if (!mysql_connected())
 		return;
 
-	eprintf(DEBUG_NEIGH, "\nquery mysql\n");
+	eprintf(DEBUG_NEIGH, "query mysql\n");
 	/* query sql for lease and add local rules*/
 	char sql[1024];
 	char sql_esc_bridge[1024];
@@ -184,23 +206,23 @@ void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* m
 	
 	mysql_real_escape_string(&mysql, sql_esc_bridge, ifname, MIN(strlen(ifname), sizeof(sql_esc_bridge) / 2 - 1));
 	snprintf(sql, sizeof(sql), "SELECT ip, MAX(validUntil) - UNIX_TIMESTAMP() FROM %s WHERE validUntil > UNIX_TIMESTAMP() AND bridge = '%s' AND mac = '%s' GROUP BY ip;", MYSQLLEASETABLE, sql_esc_bridge, ether_ntoa((struct ether_addr *)mac));
-	eprintf(DEBUG_NEIGH, "query: %s\n", sql);
+	eprintf(DEBUG_NEIGH, "query: %s", sql);
 	if (mysql_query_errprint(sql) != 0) {
 		goto out2;
 	}
 	/* mysql query sucessfull */
 	result = mysql_store_result(&mysql);
 	if (!result) {
-		eprintf(DEBUG_NEIGH, "query mysql: cannot fetch result\n");
+		eprintf(DEBUG_NEIGH, "query mysql: cannot fetch result");
 		goto out2;
 	}
 	while ((row = mysql_fetch_row(result)) != NULL) {
-		eprintf(DEBUG_NEIGH, "query mysql: got row ip = %s, expiresAt = %s\n", row[0] ? row[0] : "NULL", row[1] ? row[1] : "NULL");
+		eprintf(DEBUG_NEIGH, "query mysql: got row ip = %s, expiresAt = %s", row[0] ? row[0] : "NULL", row[1] ? row[1] : "NULL");
 		if (!row[0] || !row[1])
 			continue;
 		struct in_addr yip;
 		if (!inet_aton(row[0], &yip)) {
-			eprintf(DEBUG_NEIGH, "cannot parse ip\n");
+			eprintf(DEBUG_NEIGH, "cannot parse ip");
 			continue;
 		}
 		uint32_t expiresAt = atoi(row[1]) + now;
@@ -208,7 +230,7 @@ void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* m
 	}
 	mysql_free_result(result);
 out2:
-	eprintf(DEBUG_NEIGH, "mysql completed\n");
+	eprintf(DEBUG_NEIGH, "mysql completed");
 }
 
 void set_mysql_config_file(int c) 
@@ -221,9 +243,9 @@ static __attribute__((constructor)) void dhcp_mysql_init()
 	static struct option long_option = {"mysql-config-file", required_argument, 0, 3};
 	add_option_cb(long_option, set_mysql_config_file);
 
-	eprintf(DEBUG_ERROR,  "MySQL client version: %s\n", mysql_get_client_info());
+	eprintf(DEBUG_ERROR,  "MySQL client version: %s", mysql_get_client_info());
 	if (!mysql_init(&mysql)) {
-		eprintf(DEBUG_ERROR,  "mysql error: %s\n", mysql_error(&mysql));
+		eprintf(DEBUG_ERROR,  "mysql error: %s", mysql_error(&mysql));
 		exit(254);
 	}
 

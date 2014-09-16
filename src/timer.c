@@ -20,20 +20,115 @@
 
 #include "config.h"
 
+#include "timer.h"
 #include "event.h"
+#include "debug.h"
 #include <unistd.h>
 #include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <assert.h>
+#include <time.h>
 
-#define PRUNE_INTERVAL 300
+#define SLOT_INTERVAL 1
+
+struct timer_cb_list_entry {
+	int lastcalled;
+	int timeout;
+	int repeat;
+	int deleted;
+	void* ctx;
+	timer_cb cb;
+	struct timer_cb_list_entry* next;
+};
+struct timer_cb_list_entry* timer_cb_list = NULL;
+
+void cb_add_timer(int timeout, int repeat, void* ctx, timer_cb cb)
+{
+	struct timer_cb_list_entry* entry = malloc(sizeof(struct timer_cb_list_entry));
+	if (!entry) {
+		eprintf(DEBUG_ERROR, "out of memory");
+		exit(1);
+	}
+	memset(entry, 0, sizeof(struct timer_cb_list_entry));
+	entry->cb = cb;
+	entry->ctx = ctx;
+	entry->timeout = timeout;
+	entry->repeat = repeat;
+	entry->lastcalled = time(NULL);
+	entry->next = timer_cb_list;
+	timer_cb_list = entry;
+};
+
+void cb_del_timer(void* ctx, timer_cb cb)
+{
+	struct timer_cb_list_entry* entry = NULL;
+	for (entry = timer_cb_list; entry; entry = entry->next) {
+		if (entry->cb != cb)
+			continue;
+		if (entry->ctx != ctx)
+			continue;
+		entry->deleted = 1;
+	}
+}
 
 void timer(int s)
 {
-	alarm (PRUNE_INTERVAL);
+	alarm (SLOT_INTERVAL);
+
+	struct timer_cb_list_entry* entry = NULL, *prev = NULL, *next = NULL;
+	int now = time(NULL);
+	timer_cb cb;
+	void *ctx = NULL;
+
+	next = timer_cb_list;
+	while (next) {
+		prev = entry;
+		entry = next;
+		next = entry->next;
+
+		if (entry->deleted) {
+			/* delete entry */
+			if (prev) {
+				prev->next = next;
+			} else {
+				timer_cb_list = next;
+			}
+			free(entry);
+			entry = NULL;
+			continue;
+		}
+
+		if (entry->lastcalled + entry->timeout > now)
+			continue;
+
+		cb = entry->cb;
+		ctx = entry->ctx;
+
+		/* timer needs to fire */
+		if (entry->repeat) {
+			entry->lastcalled = now;
+		} else {
+			/* delete entry */
+			if (prev) {
+				prev->next = next;
+			} else {
+				timer_cb_list = next;
+			}
+			free(entry);
+			entry = NULL;
+		}
+
+		/* call cb */
+		cb(ctx);
+	}
 }
 
 static __attribute__((constructor)) void timer_init()
 {
 	cb_add_signal(SIGALRM, timer);
-	alarm (PRUNE_INTERVAL);
+	alarm (SLOT_INTERVAL);
 }
 

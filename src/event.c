@@ -55,7 +55,7 @@ int signalCalled = 0;
 void cb_add_packet_cb(packet_cb cb) {
 	struct packet_cb_list_entry* entry = malloc(sizeof(struct packet_cb_list_entry));
 	if (!entry) {
-		eprintf(DEBUG_ERROR, "out of memory at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		eprintf(DEBUG_ERROR, "out of memory");
 		exit(1);
 	}
 	memset(entry, 0, sizeof(struct packet_cb_list_entry));
@@ -73,15 +73,15 @@ void cb_call_packet_cb(const int ptype, const uint8_t *packet, const int len, co
 void cb_add_handle(int h, void* ctx, handle_cb cb) {
 	struct handle_cb_list_entry* entry = malloc(sizeof(struct handle_cb_list_entry));
 	if (!entry) {
-		eprintf(DEBUG_ERROR, "out of memory at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		eprintf(DEBUG_ERROR, "out of memory");
 		exit(1);
 	}
 	if(!h) {
-		eprintf(DEBUG_ERROR, "no handle given at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		eprintf(DEBUG_ERROR, "no handle given");
 		exit(1);
 	}
 	if (!cb) {
-		eprintf(DEBUG_ERROR, "no cb given at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		eprintf(DEBUG_ERROR, "no cb given");
 		exit(1);
 	}
 	memset(entry, 0, sizeof(struct handle_cb_list_entry));
@@ -104,16 +104,16 @@ void signal_cb_int(int s) {
 void cb_add_signal(int s, signal_cb cb) {
 	struct signal_cb_list_entry* entry = malloc(sizeof(struct signal_cb_list_entry));
 	if (!entry) {
-		eprintf(DEBUG_ERROR, "out of memory at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		eprintf(DEBUG_ERROR, "out of memory");
 		exit(1);
 	}
 	memset(entry, 0, sizeof(struct signal_cb_list_entry));
 	if(!s) {
-		eprintf(DEBUG_ERROR, "no signal given at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		eprintf(DEBUG_ERROR, "no signal given");
 		exit(1);
 	}
 	if (!cb) {
-		eprintf(DEBUG_ERROR, "no cb given at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		eprintf(DEBUG_ERROR, "no cb given");
 		exit(1);
 	}
 	entry->s = s;
@@ -164,5 +164,5 @@ void event_runloop() {
 			}
 		}
 	}
-	eprintf(DEBUG_ERROR, "exit due to: %s\n", strerror(errno));
+	eprintf(DEBUG_ERROR, "exit due to: %s (%d)", strerror(errno), errno);
 };

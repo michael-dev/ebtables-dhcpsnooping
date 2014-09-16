@@ -32,16 +32,20 @@ void set_debug_flag(int c) {
 	debug |= c;
 }
 
-void edprint(int level, char* msg)
+void edprint(const int level, const char* msg, const char* file, const int line, const char* fnc)
 {
 #ifdef DEBUG
+	char syslogbuf[4096];
+	const char *bname;
 	static int open = 0;
 	if (!open) {
 		openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 		open = 1;
 	}
 	if (level & debug) {
-		syslog(LOG_INFO, msg, strlen(msg));
+		bname = (strrchr(file, '/') ? strrchr(file, '/') + 1 : file);
+		snprintf(syslogbuf, sizeof(syslogbuf), "%s (%s:%d): %s", fnc, bname, line, msg);
+		syslog(LOG_INFO, syslogbuf, strlen(syslogbuf));
 	};
 #endif
 }
@@ -65,7 +69,15 @@ static __attribute__((constructor)) void debug_init()
 		add_option_cb(long_option, set_debug_flag);
 	}
 	{
+		struct option long_option = {"debug-dhcp", no_argument, 0, DEBUG_DHCP};
+		add_option_cb(long_option, set_debug_flag);
+	}
+	{
 		struct option long_option = {"debug-all",  no_argument, 0, DEBUG_ALL};
+		add_option_cb(long_option, set_debug_flag);
+	}
+	{
+		struct option long_option = {"verbose",  no_argument, 0, DEBUG_VERBOSE};
 		add_option_cb(long_option, set_debug_flag);
 	}
 }

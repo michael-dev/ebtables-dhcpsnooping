@@ -69,7 +69,7 @@ void obj_input_dellink(struct rtnl_link *link)
 	char *ifname = rtnl_link_get_name(link);
 	unsigned int ifidx = rtnl_link_get_ifindex(link);
 
-	eprintf(DEBUG_NEIGH,  "DELLINK message for %s (%d) received, pruning\n", ifname, ifidx);
+	eprintf(DEBUG_NEIGH,  "DELLINK message for %s (%d) received, pruning", ifname, ifidx);
 
 	struct helper2 tmp = { ifname, ifidx };
 	update_fdb(fdb_del_by_ifname_and_port, &tmp);
@@ -79,7 +79,7 @@ int get_lladdr(struct rtnl_neigh *neigh, char *lladdr, int size)
 {
 	struct nl_addr* addr = rtnl_neigh_get_lladdr(neigh);
 	if (nl_addr_get_family(addr) != AF_LLC) {
-		eprintf(DEBUG_NEIGH,  "addr family %d != AF_LLC (%d), ignore\n", nl_addr_get_family(addr), AF_LLC);
+		eprintf(DEBUG_NEIGH,  "addr family %d != AF_LLC (%d), ignore", nl_addr_get_family(addr), AF_LLC);
 		addr = NULL;
 		return 1;
 	}
@@ -96,12 +96,12 @@ int get_link_by_idx(int ifidx, struct rtnl_link **link)
 	if (!sock) {
 		sock = nl_socket_alloc();
 		if (sock < 0) {
-			eprintf(DEBUG_ERROR, "cannot alloc socket (III): %s\n", strerror(errno));
+			eprintf(DEBUG_ERROR, "cannot alloc socket (III): %s", strerror(errno));
 			sock = NULL;
 			return 1;
 		}
 		if (nl_connect(sock, NETLINK_ROUTE) < 0) {
-			eprintf(DEBUG_ERROR, "cannot conncet socket (III): %s\n", strerror(errno));
+			eprintf(DEBUG_ERROR, "cannot conncet socket (III): %s", strerror(errno));
 			nl_socket_free(sock);
 			sock = NULL;
 			return 1;
@@ -109,6 +109,7 @@ int get_link_by_idx(int ifidx, struct rtnl_link **link)
 	}
 
 	if (rtnl_link_get_kernel(sock, ifidx, NULL, link) < 0) {
+		eprintf(DEBUG_ERROR, "failed to fetch link %d from kernel", ifidx);
 		*link = NULL;
 		return 1;
 	}
@@ -120,7 +121,7 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 {
 	int family = rtnl_neigh_get_family(neigh);
 	if (family != AF_BRIDGE) {
-		eprintf(DEBUG_NEIGH,  "family %d != AF_BRIDGE (%d), ignore\n", family, AF_BRIDGE);
+		eprintf(DEBUG_NEIGH,  "family %d != AF_BRIDGE (%d), ignore", family, AF_BRIDGE);
 		return;
 	}
 
@@ -134,7 +135,7 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 
 	if (get_link_by_idx(ifidx, &link)) {
 		if (type == RTM_NEWNEIGH) {
-			eprintf(DEBUG_NEIGH,  "failed to fetch link %d from kernel\n", ifidx);
+			eprintf(DEBUG_ERROR, "failed to fetch link %d from kernel for NEWNEIGH messages, aborting", ifidx);
 			goto out;
 		}
 		/* RTM_DELNEIGH also works without interface resolution */
@@ -147,31 +148,31 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 	if (link) {
 		linkifname = rtnl_link_get_name(link);
 		if (!linkifname) {
-			eprintf(DEBUG_ERROR, "missing link ifname: %s\n", strerror(errno));
+			eprintf(DEBUG_ERROR, "missing link ifname: %s", strerror(errno));
 			goto out;
 		}
 
 		unsigned int bridgeidx = rtnl_link_get_master(link);
 		if (bridgeidx == 0) {
-			eprintf(DEBUG_ERROR, "missing bridge idx: %s\n", strerror(errno));
+			eprintf(DEBUG_ERROR, "missing bridge idx: %s", strerror(errno));
 			goto out;
 		}
 
 		if (get_link_by_idx(bridgeidx, &bridge)) {
-			eprintf(DEBUG_NEIGH,  " failed to fetch bridge link %d from kernel\n", bridgeidx);
+			eprintf(DEBUG_ERROR,  "failed to fetch bridge link %d from kernel, aborting", bridgeidx);
 			goto out;
 		}
 		assert(bridge);
 
 		bridgeifname = rtnl_link_get_name(bridge);
 		if (!bridgeifname) {
-			eprintf(DEBUG_ERROR, "missing bridge ifname: %s\n", strerror(errno));
+			eprintf(DEBUG_ERROR, "missing bridge ifname: %s (%d)", strerror(errno), errno);
 			goto out;
 		}
-		eprintf(DEBUG_NEIGH, "got %s, lladdr = %s, family=AF_BRIDGE iface=%s br-iface=%s", (type == RTM_NEWNEIGH ? "NEWNEIGH" : "DELNEIGH" ), lladdr, linkifname, bridgeifname);
+		eprintf(DEBUG_NEIGH | DEBUG_VERBOSE, "got %s, lladdr = %s, family=AF_BRIDGE iface=%s br-iface=%s", (type == RTM_NEWNEIGH ? "NEWNEIGH" : "DELNEIGH" ), lladdr, linkifname, bridgeifname);
 
 		if (strncmp(linkifname, ROAMIFPREFIX, strlen(ROAMIFPREFIX)) != 0) {
-//			eprintf(DEBUG_NEIGH, "\nprefix of ifname is not %s -> DELETE\n", ROAMIFPREFIX);
+//			eprintf(DEBUG_NEIGH, "prefix of ifname is not %s -> DELETE\n", ROAMIFPREFIX);
 			type = RTM_DELNEIGH;
 		}
 	}
@@ -209,7 +210,7 @@ out:
 
 void obj_input_route(struct nl_object *obj, void *arg)
 {
-//	eprintf(DEBUG_NEIGH,  "obj_input_route...\n");
+//	eprintf(DEBUG_NEIGH,  "obj_input_route...");
 
 	int type = nl_object_get_msgtype(obj);
 	switch (type) {
@@ -223,7 +224,7 @@ void obj_input_route(struct nl_object *obj, void *arg)
 	case RTM_NEWLINK:
 		break;
 	default:
-		eprintf(DEBUG_NEIGH,  "type %d != RTM_NEWNEIGH (%d), RTM_DELNEIGH (%d), RTM_NEWLINK (%d), RTM_DELLINK (%d) ignore\n", type, RTM_NEWNEIGH, RTM_DELNEIGH, RTM_NEWLINK, RTM_DELLINK);
+		eprintf(DEBUG_NEIGH,  "type %d != RTM_NEWNEIGH (%d), RTM_DELNEIGH (%d), RTM_NEWLINK (%d), RTM_DELLINK (%d) ignore", type, RTM_NEWNEIGH, RTM_DELNEIGH, RTM_NEWLINK, RTM_DELLINK);
 		break;
 	}
 }
@@ -231,41 +232,45 @@ void obj_input_route(struct nl_object *obj, void *arg)
 int event_input_route(struct nl_msg *msg, void *arg)
 {
         if (nl_msg_parse(msg, &obj_input_route, NULL) < 0)
-		eprintf(DEBUG_NEIGH,  "<<EVENT:Route>> Unknown message type\n");
+		eprintf(DEBUG_NEIGH,  "<<EVENT:Route>> Unknown message type");
 	return NL_STOP;
 }
 
 void bridge_receive(int s, void* ctx)
 {
 	struct nl_sock *nf_sock_route = (struct nl_sock *) ctx;
-	nl_recvmsgs_default(nf_sock_route);
+	int ret;
+	ret = nl_recvmsgs_default(nf_sock_route);
+	if (ret < 0) {
+		eprintf(DEBUG_ERROR,  "receiving ROUTE->NEIGH failed on %d error %s", s, strerror(errno));
+	}
 }
 
 static __attribute__((constructor)) void bridge_init()
 {
-	eprintf(DEBUG_ERROR,  "Listen to ROUTE->NEIGH notifications\n");
+	eprintf(DEBUG_ERROR,  "Listen to ROUTE->NEIGH notifications");
 	/* connect to netlink route to get notified of bridges learning new addresses */
 	struct nl_sock *nf_sock_route;
 	nf_sock_route = nl_socket_alloc();
 	if (nf_sock_route < 0) {
-		eprintf(DEBUG_ERROR, "cannot alloc socket (II): %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "cannot alloc socket (II): %s", strerror(errno));
 		exit(254);
 	}
 	nl_socket_disable_seq_check(nf_sock_route);
 	nl_socket_modify_cb(nf_sock_route, NL_CB_VALID, NL_CB_CUSTOM, event_input_route, NULL);
 
 	if (nl_connect(nf_sock_route, NETLINK_ROUTE) < 0) {
-		eprintf(DEBUG_ERROR, "cannot connect II: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "cannot connect II: %s", strerror(errno));
 		exit(254);
 	}
 
         if (nl_socket_add_membership(nf_sock_route, RTNLGRP_NEIGH)) {
-		eprintf(DEBUG_ERROR, "cannot bind to GRPNEIGH: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "cannot bind to GRPNEIGH: %s", strerror(errno));
 		exit(254);
 	}
 
         if (nl_socket_add_membership(nf_sock_route, RTNLGRP_LINK)) {
-		eprintf(DEBUG_ERROR, "cannot bind to GRPLINK: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "cannot bind to GRPLINK: %s", strerror(errno));
 		exit(254);
 	}
 

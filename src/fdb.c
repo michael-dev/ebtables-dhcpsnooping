@@ -25,6 +25,7 @@
 #include "dhcp.h"
 #include "debug.h"
 #include "event.h"
+#include "timer.h"
 
 #include <signal.h>
 #include <string.h>
@@ -58,7 +59,7 @@ struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, ui
 	if (globalFdbCacheSize > FDBMAXSIZE) return NULL;
 	struct cache_fdb_entry* entry = malloc(sizeof(struct cache_fdb_entry));
 	if (!entry) {
-		eprintf(DEBUG_ERROR, "out of memory at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		eprintf(DEBUG_ERROR, "out of memory");
 		return NULL;
 	}
 	memset(entry, 0, sizeof(struct cache_fdb_entry));
@@ -79,7 +80,7 @@ void update_fdb(update_fdb_cb cb, void* ctx) {
 	}
 }
 
-void check_expired_fdb(int s)
+void check_expired_fdb(void *ctx)
 {
 	struct cache_fdb_entry* entry = globalFdbCache;
 	struct cache_fdb_entry* prev = NULL;
@@ -108,14 +109,14 @@ void dump_fdb(int s)
 {
 	struct cache_fdb_entry* entry = globalFdbCache;
 	while (entry != NULL) {
-		eprintf(DEBUG_GENERAL,  "fdb: MAC: %s BRIDGE: %s %s\n" , ether_ntoa((struct ether_addr *)entry->mac), entry->bridge, (entry->enabled ? "enabled" : "disabled"));
+		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "fdb: MAC: %s BRIDGE: %s %s" , ether_ntoa((struct ether_addr *)entry->mac), entry->bridge, (entry->enabled ? "enabled" : "disabled"));
 		entry = entry->next;
 	}
 }
 
 static __attribute__((constructor)) void fdb_init()
 {
-	cb_add_signal(SIGALRM, check_expired_fdb);
+	cb_add_timer(PRUNE_INTERVAL, 1, NULL, check_expired_fdb);
 	cb_add_signal(SIGUSR1, dump_fdb);
 	add_is_local_hook(get_fdb_entry_wrp);
 }

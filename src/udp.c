@@ -60,14 +60,14 @@ void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname
 		broadcastSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 		if (broadcastSock < 0) {
 			broadcastSock = 0;
-			eprintf(DEBUG_ERROR, "cannot open broadcast socket: %s\n", strerror(errno));
+			eprintf(DEBUG_ERROR, "cannot open broadcast socket: %s", strerror(errno));
 			return;
 		}
 		int broadcastEnable=1;
 		int ret=setsockopt(broadcastSock, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable));
 		if (ret < 0) {
 			broadcastSock = 0;
-			eprintf(DEBUG_ERROR, "cannot open broadcast socket: setting SO_BROADCAST failed: %s\n", strerror(errno));
+			eprintf(DEBUG_ERROR, "cannot open broadcast socket: setting SO_BROADCAST failed: %s", strerror(errno));
 			close(broadcastSock);
 			return;
 		}
@@ -81,7 +81,7 @@ void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname
 
 	/* send message */
 	if(sendto(broadcastSock, msg, strlen(msg), 0, (struct sockaddr *)&sbroadcastAddr, sizeof(sbroadcastAddr)) < 0)
-		eprintf(DEBUG_ERROR, "sendto: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "udp sendto: %s (%d)", strerror(errno), errno);
 }
 
 void handle_udp_message(char* buf, int recvlen) 
@@ -109,28 +109,28 @@ void handle_udp_message(char* buf, int recvlen)
 	uint8_t* mac = (uint8_t*) ether_aton(str_mac);
 	struct in_addr yip;
 	if (!inet_aton(str_ip, &yip)) {
-		eprintf(DEBUG_UDP,  "invalid ip %s\n", str_ip);
+		eprintf(DEBUG_UDP,  "invalid ip %s", str_ip);
 		return;
 	}
 	uint32_t expire = time(NULL) + atoi(str_expire);
 	if (update_lease(ifname, mac, &yip, &expire)) {
+		eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: update lease MAC: %s IP: %s VLAN: %s expiresAt:%d", ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), ifname, expire);
 		return;
 	}
 
 	/* parse message */
 	if (if_nametoindex(ifname) == 0) {
-		eprintf(DEBUG_ERROR, "invalid interface: %s\n", strerror(errno));
-		eprintf(DEBUG_UDP,  "Interface %s unknown\n", ifname);
+		eprintf(DEBUG_UDP,  "Interface %s unknown: %s (%d)", ifname, strerror(errno), errno);
 		return;
 	}
 
 	if (!is_local(mac, ifname)) {
-		eprintf(DEBUG_UDP,  "MAC %s locally unknown\n", str_mac);
+		eprintf(DEBUG_UDP,  "MAC %s locally unknown", str_mac);
 		return;
 	}
 
 	/* add lease */
-	eprintf(DEBUG_UDP,  "adding new lease\n");
+	eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: adding new lease MAC: %s IP: %s VLAN: %s expiresAt:%d", ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), ifname, expire);
 	add_ack_entry_if_not_found(&yip, mac, ifname, expire);
 }				
 
@@ -141,18 +141,18 @@ void udp_receive(int udpsocket, void* ctx) {
 
 	int recvlen = recvfrom(udpsocket, buf, sizeof(buf)-1 , MSG_DONTWAIT, (struct sockaddr*) &their_addr, &addr_len);
 		if (recvlen < 0) {
-		eprintf(DEBUG_ERROR, "recvfrom udpsocket: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "recvfrom udpsocket: %s", strerror(errno));
 		return;
 	}
 	if ((their_addr.sin_addr.s_addr & networkMask.s_addr) != networkAddr.s_addr) {
-		eprintf(DEBUG_UDP, "got packet from %s not matching %s/%s\n",
+		eprintf(DEBUG_UDP, "got packet from %s not matching %s/%s",
 				   inet_ntoa(their_addr.sin_addr),
 				   inet_ntoa(networkAddr),
 				   inet_ntoa(networkMask) );
 		return;
 	}
-	eprintf(DEBUG_UDP,  "got packet from %s\n",inet_ntoa(their_addr.sin_addr));
-	eprintf(DEBUG_UDP,  "packet contains \"%s\"\n",buf);
+	eprintf(DEBUG_UDP,  "got packet from %s",inet_ntoa(their_addr.sin_addr));
+	eprintf(DEBUG_UDP,  "packet contains \"%s\"",buf);
 	handle_udp_message(buf, recvlen);
 }
 
@@ -163,17 +163,17 @@ static __attribute__((constructor)) void udp_init()
 	broadcastAddr.s_addr = networkAddr.s_addr | (~networkMask.s_addr);
 	networkAddr.s_addr = networkAddr.s_addr & networkMask.s_addr;
 
-	eprintf(DEBUG_ERROR,  "Listen to broadcasts for dhcp notifications\n");
+	eprintf(DEBUG_ERROR,  "Listen to broadcasts for dhcp notifications");
 	int udpsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (udpsocket < 0) {
-		eprintf(DEBUG_ERROR, "udp socket: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "udp socket: %s", strerror(errno));
 		exit(254);
 	}
 
 	int broadcastEnable=1;
 	int ret=setsockopt(udpsocket, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable));
 	if (ret < 0) {
-		eprintf(DEBUG_ERROR, "cannot open udp socket: setting SO_BROADCAST failed: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "cannot open udp socket: setting SO_BROADCAST failed: %s", strerror(errno));
 		close(udpsocket);
 		exit(254);
 	}
@@ -185,7 +185,7 @@ static __attribute__((constructor)) void udp_init()
 	my_addr.sin_port = htons(NETWORKPORT);
 
 	if (bind(udpsocket, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) < 0) {
-		eprintf(DEBUG_ERROR, "bind udp: %s\n", strerror(errno));
+		eprintf(DEBUG_ERROR, "bind udp: %s", strerror(errno));
 		exit(254);
 	}
 
