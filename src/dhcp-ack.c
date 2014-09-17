@@ -85,11 +85,11 @@ void add_ack_entry_if_not_found(const struct in_addr* yip, const uint8_t* mac, c
 	if (entry == NULL) {
 		entry = add_ack_entry(yip, mac, ifname, expiresAt);
 		ebtables_add(yip, mac, ifname);
-		cb_add_timer(expiresAt - time(NULL), 0, entry, check_expired_ack);
+		cb_add_timer(expiresAt - time(NULL) + 1, 0, entry, check_expired_ack);
 	} else {
 		if (entry->expiresAt != expiresAt) {
 			cb_del_timer(entry, check_expired_ack);
-			cb_add_timer(expiresAt - time(NULL), 0, entry, check_expired_ack);
+			cb_add_timer(expiresAt - time(NULL) + 1, 0, entry, check_expired_ack);
 		}
 		entry->expiresAt = expiresAt;
 	}
@@ -101,7 +101,7 @@ void ack_update(ack_update_cb cb, void* ctx) {
 		cb(entry, ctx);
 		if (entry->expiresAt != expiresAt) {
 			cb_del_timer(entry, check_expired_ack);
-			cb_add_timer(entry->expiresAt - time(NULL), 0, entry, check_expired_ack);
+			cb_add_timer(entry->expiresAt - time(NULL) + 1, 0, entry, check_expired_ack);
 		}
 	}
 }
