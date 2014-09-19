@@ -132,7 +132,7 @@ void check_expired_ack(void *ctx)
 	struct cache_ack_entry* prev = NULL;
 	while (entry != NULL) {
 		if (ctx != NULL && entry != ctx)
-			continue;
+			goto next;
 
 		eprintf(DEBUG_DHCP, "check for expired dhcp ack: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, entry->expiresAt - now);
 		for(struct cache_ack_update_cb_entry* cb_entry = globalAckUpdatCbList; cb_entry; cb_entry = cb_entry->next) {
@@ -153,10 +153,11 @@ void check_expired_ack(void *ctx)
 			} else {
 				entry = prev->next;
 			}
-		} else {
-			prev = entry;
-			entry = entry->next;
+			continue;
 		}
+next:
+		prev = entry;
+		entry = entry->next;
 	}
 }
 
