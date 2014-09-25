@@ -1,6 +1,10 @@
 Add notification (NEWNEIGH) when fdb-entry (MAC) moves between switchports.
 Not present until at least 3.14-rc1.
 
+Update 2014-09-25: c65c7a306 introduced a sufficent change for this into
+                   upstream kernel. It is in 3.17-rc6 and 3.16.3 but not
+		   3.14.19 at least.
+
 Patch: https://patchwork.kernel.org/patch/2444531/
 Upstream has (does not work):
  https://github.com/torvalds/linux/commit/b0a397fb352e65e3b6501dca9662617a18862ef1 in v3.10-rc1

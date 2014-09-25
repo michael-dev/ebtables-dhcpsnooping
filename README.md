@@ -53,6 +53,10 @@ kernel bridge code. Currently, this needs some simple kernel patching, as
 mostly STAs will just switch between the bridge ports "wlan+" and "uplink+".
 See patch/ for details.
 
+Update 2014-09-25: c65c7a306 introduced a sufficent change for this into
+                   upstream kernel. It is in 3.17-rc6 and 3.16.3 but not
+		   3.14.19 at least.
+
 Notification to other instances
 -------------------------------
 

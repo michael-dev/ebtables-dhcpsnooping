@@ -31,6 +31,9 @@ for leases an add them, so the STAs doesn't need to repeat the DHCP handshake.
 Attentention: This needs a kernel patch, so see patch folder until it is
 applied upstream. Otherwise the AP won't learn when the STA moves from
 backbone to local wlan device on the bridge.
+Update 2014-09-25: c65c7a306 introduced a sufficent change for this into
+                   upstream kernel. It is in 3.17-rc6 and 3.16.3 but not
+		   3.14.19 at least.
 
 Further, the dhcpsnooping daemons inform each other using UDP broadcasts about
 DHCP changes, this triggers creating ebtables rules when an STA changes its IP.
