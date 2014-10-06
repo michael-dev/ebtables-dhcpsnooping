@@ -19,6 +19,7 @@
  */
 
 #include "config.h"
+#include "dhcp.h"
 #include "dhcp-ack.h"
 #include "ebtables.h"
 #include "signal.h"
@@ -46,6 +47,14 @@ struct cache_ack_update_cb_entry {
 
 static struct cache_ack_entry* globalAckCache = NULL;
 static struct cache_ack_update_cb_entry* globalAckUpdatCbList = NULL;
+
+void update_ack_timeout(struct cache_ack_entry* entry) {
+	int now = time(NULL);
+	int timeout = (entry->expiresAt < now) ? 0 : (entry->expiresAt - time(NULL));
+
+	cb_del_timer(entry, check_expired_ack);
+	cb_add_timer(timeout + 1, 0, entry, check_expired_ack);
+}
 
 struct cache_ack_entry* get_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname) 
 {
@@ -80,18 +89,19 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 
 void add_ack_entry_if_not_found(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt) 
 {
+	int modified = 0;
 	assert(yip); assert(mac); assert(ifname);
 	struct cache_ack_entry* entry = get_ack_entry(yip, mac, ifname);
 	if (entry == NULL) {
 		entry = add_ack_entry(yip, mac, ifname, expiresAt);
 		ebtables_add(yip, mac, ifname);
-		cb_add_timer(expiresAt - time(NULL) + 1, 0, entry, check_expired_ack);
+		modified = 1;
 	} else {
-		if (entry->expiresAt != expiresAt) {
-			cb_del_timer(entry, check_expired_ack);
-			cb_add_timer(expiresAt - time(NULL) + 1, 0, entry, check_expired_ack);
-		}
+		modified = (entry->expiresAt != expiresAt);
 		entry->expiresAt = expiresAt;
+	}
+	if (modified) {
+		update_ack_timeout(entry);
 	}
 }
 
@@ -100,8 +110,7 @@ void ack_update(ack_update_cb cb, void* ctx) {
 		int expiresAt = entry->expiresAt;
 		cb(entry, ctx);
 		if (entry->expiresAt != expiresAt) {
-			cb_del_timer(entry, check_expired_ack);
-			cb_add_timer(entry->expiresAt - time(NULL) + 1, 0, entry, check_expired_ack);
+			update_ack_timeout(entry);
 		}
 	}
 }
@@ -122,6 +131,8 @@ void add_ack_update_cb(ack_update_cb cb, void* ctx) {
 void check_expired_ack(void *ctx)
 {
 	uint32_t now =time(NULL);
+	int expiresAt;
+	int modified;
 
 	if (ctx) {
 		eprintf(DEBUG_DHCP | DEBUG_VERBOSE, "check for expired dhcp ack (single)");
@@ -134,9 +145,17 @@ void check_expired_ack(void *ctx)
 		if (ctx != NULL && entry != ctx)
 			goto next;
 
+		if (ctx && !(entry->expiresAt < now)) {
+			eprintf(DEBUG_ERROR, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d has not yet expired", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, entry->expiresAt - now);
+		}
 		eprintf(DEBUG_DHCP, "check for expired dhcp ack: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, entry->expiresAt - now);
+		expiresAt = entry->expiresAt;
 		for(struct cache_ack_update_cb_entry* cb_entry = globalAckUpdatCbList; cb_entry; cb_entry = cb_entry->next) {
 			cb_entry->cb(entry, cb_entry->ctx);
+		}
+		modified = (expiresAt != entry->expiresAt);
+		if (ctx && !(entry->expiresAt < now)) {
+			eprintf(DEBUG_VERBOSE, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d was updated remotely and has not yet expired (we likely missed a UDP packet)", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, entry->expiresAt - now);
 		}
 		eprintf(DEBUG_DHCP, "check for expired dhcp ack after update cb: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, entry->expiresAt - now);
 		if (entry->expiresAt < now) {
@@ -147,18 +166,25 @@ void check_expired_ack(void *ctx)
 				prev->next = entry->next;
 			}
 			cb_del_timer(entry, check_expired_ack);
-			free(entry);
+			free(entry); entry = NULL;
 			if (prev == NULL) {
 				entry = globalAckCache;
 			} else {
 				entry = prev->next;
 			}
 			continue;
+		} else if (modified) {
+			update_ack_timeout(entry);
 		}
 next:
 		prev = entry;
 		entry = entry->next;
 	}
+}
+
+void on_updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt)
+{
+	add_ack_entry_if_not_found(yip, mac, ifname, expiresAt);
 }
 
 void dump_ack(int s)
@@ -175,5 +201,6 @@ static __attribute__((constructor)) void dhcp_ack_init()
 {
 	cb_add_timer(PRUNE_INTERVAL, 1, NULL, check_expired_ack);
 	cb_add_signal(SIGUSR1, dump_ack);
+	add_updated_lease_hook(on_updated_lease);
 }
 

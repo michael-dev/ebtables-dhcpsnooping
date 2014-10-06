@@ -154,27 +154,33 @@ int mysql_update_lease_from_sql(const char* ifname, const uint8_t* mac, const st
 	MYSQL_ROW row;
 	char sql[1024];
 	char sql_esc_bridge[1024];
+	int newExpiresAt;
 
 	if (!mysql_connected())
-		return 1;
+		return 0;
 	
 	mysql_real_escape_string(&mysql, sql_esc_bridge, ifname, MIN(strlen(ifname), sizeof(sql_esc_bridge) / 2 - 1));
 	snprintf(sql, sizeof(sql), "SELECT MAX(validUntil) - UNIX_TIMESTAMP() FROM " MYSQLLEASETABLE " WHERE validUntil > UNIX_TIMESTAMP() AND bridge = '%s' AND mac = '%s' AND ip = '%s';", sql_esc_bridge, ether_ntoa((struct ether_addr *)mac), inet_ntoa(*ip));
 	if (mysql_query_errprint(sql) != 0)
-		return 1;
+		return 0;
 	/* mysql query sucessfull */
 	result = mysql_store_result(&mysql);
 	if (!result) /* Da ist ein Fehler aufgetreten */
-		return 1;
+		return 0;
 	/* MAX(validUntil) - UNIX_TIMESTAMP() == NULL wenn keine records gefunden werden -> row[0] == NULL */
 	row = mysql_fetch_row(result);
 	if (row && row[0]) {
-		*expiresAt = atoi(row[0]) + time(NULL);
+		newExpiresAt = atoi(row[0]) + time(NULL);
 	} else {
-		*expiresAt = 0;
+		newExpiresAt = 0;
 	}
 	mysql_free_result(result);
-	return 0;
+	if (*expiresAt != newExpiresAt) {
+		*expiresAt = newExpiresAt;
+		updated_lease(mac, ip, ifname, *expiresAt);
+	}
+
+	return 1;
 }
 
 void mysql_update_local_ack(struct cache_ack_entry* entry, void* ctx)
