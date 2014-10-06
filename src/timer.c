@@ -111,6 +111,7 @@ void timer(int s)
 		if (entry->repeat) {
 			entry->lastcalled = now;
 		} else {
+			/* do not free it here, as cb might add a new timer => successive add_timer would break if prev=NULL */
 			entry->deleted = 1;
 		}
 
