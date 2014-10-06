@@ -97,7 +97,7 @@ void timer(int s)
 				timer_cb_list = next;
 			}
 			free(entry);
-			entry = NULL;
+			entry = prev;
 			continue;
 		}
 
@@ -111,14 +111,7 @@ void timer(int s)
 		if (entry->repeat) {
 			entry->lastcalled = now;
 		} else {
-			/* delete entry */
-			if (prev) {
-				prev->next = next;
-			} else {
-				timer_cb_list = next;
-			}
-			free(entry);
-			entry = NULL;
+			entry->deleted = 1;
 		}
 
 		/* call cb */
