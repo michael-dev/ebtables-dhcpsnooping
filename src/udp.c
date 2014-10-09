@@ -89,7 +89,7 @@ void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname
 		eprintf(DEBUG_ERROR, "udp sendto: %s (%d)", strerror(errno), errno);
 }
 
-void handle_udp_message(char* buf, int recvlen) 
+void handle_udp_message(char* buf, int recvlen, char* from)
 {
 	/* msg := <ifname>\t<mac>\t<ip>\t<expire> */
 	/* split message by \t */
@@ -139,7 +139,7 @@ void handle_udp_message(char* buf, int recvlen)
 	}
 
 	/* add lease */
-	eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: adding new lease MAC: %s IP: %s VLAN: %s expiresAt:%d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, expire);
+	eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: adding new lease MAC: %s IP: %s VLAN: %s expiresAt:%d (from: %s)", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, expire, from);
 	updated_lease(mac, &yip, ifname, expire, UPDATED_LEASE_FROM_EXTERNAL);
 }
 
@@ -163,7 +163,7 @@ void udp_receive(int udpsocket, void* ctx)
 	}
 	eprintf(DEBUG_UDP,  "got packet from %s",inet_ntoa(their_addr.sin_addr));
 	eprintf(DEBUG_UDP,  "packet contains \"%s\"",buf);
-	handle_udp_message(buf, recvlen);
+	handle_udp_message(buf, recvlen, inet_ntoa(their_addr.sin_addr));
 }
 
 static __attribute__((constructor)) void udp_init()
