@@ -158,47 +158,28 @@ int mysql_update_lease_from_sql(const char* ifname, const uint8_t* mac, const st
 	MYSQL_ROW row;
 	char sql[1024];
 	char sql_esc_bridge[1024];
-	int newExpiresAt;
 
 	if (!mysql_connected())
-		return 0;
+		return -1;
 	
 	mysql_real_escape_string(&mysql, sql_esc_bridge, ifname, MIN(strlen(ifname), sizeof(sql_esc_bridge) / 2 - 1));
 	snprintf(sql, sizeof(sql), "SELECT MAX(validUntil) - UNIX_TIMESTAMP() FROM " MYSQLLEASETABLE " WHERE validUntil > UNIX_TIMESTAMP() AND bridge = '%s' AND mac = '%s' AND ip = '%s';", sql_esc_bridge, ether_ntoa((struct ether_addr *)mac), inet_ntoa(*ip));
 	if (mysql_query_errprint(sql) != 0)
-		return 0;
+		return -1;
 	/* mysql query sucessfull */
 	result = mysql_store_result(&mysql);
 	if (!result) /* Da ist ein Fehler aufgetreten */
-		return 0;
+		return -1;
 	/* MAX(validUntil) - UNIX_TIMESTAMP() == NULL wenn keine records gefunden werden -> row[0] == NULL */
 	row = mysql_fetch_row(result);
 	if (row && row[0]) {
-		newExpiresAt = atoi(row[0]) + time(NULL);
+		*expiresAt = atoi(row[0]) + time(NULL);
 	} else {
-		newExpiresAt = 0;
+		*expiresAt = 0;
 	}
 	mysql_free_result(result);
-	if (*expiresAt != newExpiresAt) {
-		*expiresAt = newExpiresAt;
-		updated_lease(mac, ip, ifname, *expiresAt, UPDATED_LEASE_FROM_SQL);
-	}
 
-	return 1;
-}
-
-void mysql_update_local_ack(struct cache_ack_entry* entry, void* ctx)
-{
-	char sql[1024];
-	
-	if (!mysql_connected())
-		return;
-
-	/* update mysql */
-	snprintf(sql, sizeof(sql), "DELETE FROM " MYSQLLEASETABLE " WHERE validUntil < UNIX_TIMESTAMP()");
-	mysql_query_errprint(sql);
-
-	mysql_update_lease_from_sql(entry->bridge, entry->mac, &entry->ip, &entry->expiresAt);
+	return 0;
 }
 
 void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* mac, lease_cb cb)
@@ -236,7 +217,7 @@ void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* m
 			continue;
 		}
 		uint32_t expiresAt = atoi(row[1]) + now;
-		cb (&yip, mac, ifname, expiresAt, UPDATED_LEASE_FROM_SQL);
+		cb (mac, &yip, ifname, expiresAt, UPDATED_LEASE_FROM_EXTERNAL);
 	}
 	mysql_free_result(result);
 out2:
@@ -259,7 +240,6 @@ static __attribute__((constructor)) void dhcp_mysql_init()
 		exit(254);
 	}
 
-	add_ack_update_cb(mysql_update_local_ack, NULL);
 	add_update_lease_hook(mysql_update_lease_from_sql);
 	add_updated_lease_hook(mysql_update_lease);
 	add_lease_lookup_by_mac(mysql_iterate_lease_for_ifname_and_mac);

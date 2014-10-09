@@ -199,7 +199,7 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 	}
 
 	if (type == RTM_NEWNEIGH) {
-		lease_lookup_by_mac(bridgeifname, (uint8_t*) mac, add_ack_entry_if_not_found);
+		lease_lookup_by_mac(bridgeifname, (uint8_t*) mac, updated_lease);
 	}
 out:
 	if (link)

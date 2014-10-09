@@ -90,7 +90,7 @@ void add_update_lease_hook(update_lease_cb cb)
 int update_lease(const char* ifname, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
 {
 	for (struct update_lease_entry *entry = globalUpdateLeaseHook; entry; entry = entry->next) {
-		if (entry->cb(ifname, mac, ip, expiresAt)) return 1;
+		if (entry->cb(ifname, mac, ip, expiresAt) < 0) return -1;
 	}
 	return 0;
 }

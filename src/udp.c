@@ -117,8 +117,8 @@ void handle_udp_message(char* buf, int recvlen)
 		return;
 	}
 	uint32_t expire = time(NULL) + atoi(str_expire);
-	if (update_lease(ifname, mac, &yip, &expire)) {
-		eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: update lease MAC: %s IP: %s VLAN: %s expiresAt:%d", ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), ifname, expire);
+	if (update_lease(ifname, mac, &yip, &expire) < 0) {
+		eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: sql query for lease MAC: %s IP: %s VLAN: %s failed", ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), ifname);
 		return;
 	}
 
@@ -135,10 +135,11 @@ void handle_udp_message(char* buf, int recvlen)
 
 	/* add lease */
 	eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: adding new lease MAC: %s IP: %s VLAN: %s expiresAt:%d", ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), ifname, expire);
-	add_ack_entry_if_not_found(&yip, mac, ifname, expire, UPDATED_LEASE_FROM_UDP);
-}				
+	updated_lease(mac, &yip, ifname, expire, UPDATED_LEASE_FROM_EXTERNAL);
+}
 
-void udp_receive(int udpsocket, void* ctx) {
+void udp_receive(int udpsocket, void* ctx)
+{
 	struct sockaddr_in their_addr;
 	socklen_t addr_len = sizeof(struct sockaddr);
 	char buf[1024]; memset(&buf, 0, sizeof(buf));

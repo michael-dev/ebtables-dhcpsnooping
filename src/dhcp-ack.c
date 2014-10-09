@@ -33,27 +33,37 @@
 #include <stdlib.h>
 #include <time.h>
 
-void check_expired_ack(void *ctx);
+#include <net/if.h>
+#include <netinet/ether.h>
+#include <stdint.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+
+struct cache_ack_entry 
+{
+	char bridge[IF_NAMESIZE];
+	uint8_t mac[ETH_ALEN];
+	struct in_addr ip;
+	uint32_t expiresAt;
+	struct cache_ack_entry* next;
+};
 
 /* global cache of dhcp acks (linked list)
  * fields: bridge name, mac, ip, lifetime
  */
 
-struct cache_ack_update_cb_entry {
-	ack_update_cb cb;
-	void* ctx;
-	struct cache_ack_update_cb_entry* next;
-};
-
 static struct cache_ack_entry* globalAckCache = NULL;
-static struct cache_ack_update_cb_entry* globalAckUpdatCbList = NULL;
+
+void check_expired_ack(void *ctx);
 
 void update_ack_timeout(struct cache_ack_entry* entry) {
-	int now = time(NULL);
-	int timeout = (entry->expiresAt < now) ? 0 : (entry->expiresAt - time(NULL));
+       int now = time(NULL);
+       int timeout = (entry->expiresAt < now) ? 0 : (entry->expiresAt - time(NULL));
 
-	cb_del_timer(entry, check_expired_ack);
-	cb_add_timer(timeout + 1, 0, entry, check_expired_ack);
+       cb_del_timer(entry, check_expired_ack);
+       cb_add_timer(timeout + 1, 0, entry, check_expired_ack);
 }
 
 struct cache_ack_entry* get_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname) 
@@ -87,7 +97,7 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 	return entry;
 }
 
-void add_ack_entry_if_not_found(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason) 
+void on_updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	int modified = 0;
 	uint32_t now =time(NULL);
@@ -103,28 +113,13 @@ void add_ack_entry_if_not_found(const struct in_addr* yip, const uint8_t* mac, c
 	}
 	if (modified) {
 		update_ack_timeout(entry);
-		updated_lease(mac, yip, ifname, expiresAt, reason);
 	}
-}
-
-void add_ack_update_cb(ack_update_cb cb, void* ctx) {
-	struct cache_ack_update_cb_entry* entry = malloc(sizeof(struct cache_ack_update_cb_entry));
-	if (!entry) {
-		eprintf(DEBUG_ERROR, "out of memory at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
-		exit(1);
-	}
-	memset(entry, 0, sizeof(struct cache_ack_update_cb_entry));
-	entry->next = globalAckUpdatCbList;
-	entry->cb = cb;
-	entry->ctx = ctx;
-	globalAckUpdatCbList = entry;
 }
 
 void check_expired_ack(void *ctx)
 {
 	uint32_t now =time(NULL);
-	int expiresAt;
-	int modified;
+	uint32_t expiresAt;
 
 	if (ctx) {
 		eprintf(DEBUG_DHCP | DEBUG_VERBOSE, "check for expired dhcp ack (single)");
@@ -136,21 +131,27 @@ void check_expired_ack(void *ctx)
 	while (entry != NULL) {
 		if (ctx != NULL && entry != ctx)
 			goto next;
-
-		if (ctx && !(entry->expiresAt < now)) {
-			eprintf(DEBUG_ERROR, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d has not yet expired", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, entry->expiresAt - now);
-		}
-		eprintf(DEBUG_DHCP, "check for expired dhcp ack: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, entry->expiresAt - now);
 		expiresAt = entry->expiresAt;
-		for(struct cache_ack_update_cb_entry* cb_entry = globalAckUpdatCbList; cb_entry; cb_entry = cb_entry->next) {
-			cb_entry->cb(entry, cb_entry->ctx);
+
+		if (ctx && !(expiresAt < now)) {
+			eprintf(DEBUG_ERROR, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d has not yet expired", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
 		}
-		modified = (expiresAt != entry->expiresAt);
-		if (ctx && !(entry->expiresAt < now)) {
-			eprintf(DEBUG_VERBOSE, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d was updated remotely and has not yet expired (we likely missed a UDP packet)", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, entry->expiresAt - now);
+
+		eprintf(DEBUG_DHCP, "check for expired dhcp ack: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
+		if (update_lease(entry->bridge, entry->mac, &entry->ip, &expiresAt) >= 0)
+		{
+			if (expiresAt != entry->expiresAt)
+			{
+				updated_lease(entry->mac, &entry->ip, entry->bridge,entry-> expiresAt, UPDATED_LEASE_FROM_EXTERNAL);
+			}
 		}
-		eprintf(DEBUG_DHCP, "check for expired dhcp ack after update cb: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, entry->expiresAt - now);
-		if (entry->expiresAt < now) {
+
+		if (ctx && !(expiresAt < now)) {
+			eprintf(DEBUG_VERBOSE, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d was updated remotely and has not yet expired (we likely missed a UDP packet)", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
+		}
+
+		eprintf(DEBUG_DHCP, "check for expired dhcp ack after update cb: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
+		if (expiresAt < now) {
 			ebtables_del(&entry->ip, entry->mac, entry->bridge);
 			if (prev == NULL) {
 				globalAckCache = entry->next;
@@ -165,21 +166,10 @@ void check_expired_ack(void *ctx)
 				entry = prev->next;
 			}
 			continue;
-		} else if (modified) {
-			update_ack_timeout(entry);
 		}
 next:
 		prev = entry;
 		entry = entry->next;
-	}
-}
-
-void on_updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
-{
-	assert(yip); assert(mac); assert(ifname);
-	struct cache_ack_entry* entry = get_ack_entry(yip, mac, ifname);
-	if (entry != NULL) {
-		update_ack_timeout(entry);
 	}
 }
 
