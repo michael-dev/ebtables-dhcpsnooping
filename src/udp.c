@@ -116,7 +116,11 @@ void handle_udp_message(char* buf, int recvlen)
 		eprintf(DEBUG_UDP,  "invalid ip %s", str_ip);
 		return;
 	}
-	uint32_t expire = time(NULL) + atoi(str_expire);
+	int timedelta = atoi(str_expire);
+	uint32_t expire = 0;
+	if (timedelta > 0)
+		expire = time(NULL) + atoi(str_expire);
+		
 	if (update_lease(ifname, mac, &yip, &expire) < 0) {
 		eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: sql query for lease MAC: %s IP: %s VLAN: %s failed", ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), ifname);
 		return;
