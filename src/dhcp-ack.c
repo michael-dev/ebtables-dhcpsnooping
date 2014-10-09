@@ -176,7 +176,11 @@ next:
 
 void on_updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
-	add_ack_entry_if_not_found(yip, mac, ifname, expiresAt, reason);
+	assert(yip); assert(mac); assert(ifname);
+	struct cache_ack_entry* entry = get_ack_entry(yip, mac, ifname);
+	if (entry != NULL) {
+		update_ack_timeout(entry);
+	}
 }
 
 void dump_ack(int s)
