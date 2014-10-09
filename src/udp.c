@@ -47,12 +47,16 @@ static struct in_addr broadcastAddr;
 static struct in_addr networkAddr;
 static struct in_addr networkMask;
 
-void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt)
+void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	static int broadcastSock = 0;
 	struct sockaddr_in sbroadcastAddr; /* Broadcast address */
-
 	char msg[1024];
+
+	/* only write DHCP ACK packet changes back */
+	if (reason != UPDATED_LEASE_FROM_DHCP)
+		return;
+
 	snprintf(msg, sizeof(msg), "%s\t%s\t%s\t%d", ifname, ether_ntoa((struct ether_addr *)mac), inet_ntoa(*yip), (int) (expiresAt - time(NULL)));
 
 	/* Create socket for sending/receiving datagrams */

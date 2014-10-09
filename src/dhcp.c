@@ -108,10 +108,10 @@ void add_updated_lease_hook(updated_lease_cb cb)
 	globalUpdatedLeaseHook = entry;
 }
 
-void updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt)
+void updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	for (struct updated_lease_entry *entry = globalUpdatedLeaseHook; entry; entry = entry->next) {
-		entry->cb(mac, yip, ifname, expiresAt);
+		entry->cb(mac, yip, ifname, expiresAt, reason);
 	}
 }
 

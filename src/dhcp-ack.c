@@ -90,28 +90,19 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 void add_ack_entry_if_not_found(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt) 
 {
 	int modified = 0;
+	uint32_t now =time(NULL);
 	assert(yip); assert(mac); assert(ifname);
 	struct cache_ack_entry* entry = get_ack_entry(yip, mac, ifname);
-	if (entry == NULL) {
+	if (entry != NULL) {
+		modified = (entry->expiresAt != expiresAt);
+		entry->expiresAt = expiresAt;
+	} else if (expiresAt > now) {
 		entry = add_ack_entry(yip, mac, ifname, expiresAt);
 		ebtables_add(yip, mac, ifname);
 		modified = 1;
-	} else {
-		modified = (entry->expiresAt != expiresAt);
-		entry->expiresAt = expiresAt;
 	}
 	if (modified) {
 		update_ack_timeout(entry);
-	}
-}
-
-void ack_update(ack_update_cb cb, void* ctx) {
-	for(struct cache_ack_entry* entry = globalAckCache; entry; entry = entry->next) {
-		int expiresAt = entry->expiresAt;
-		cb(entry, ctx);
-		if (entry->expiresAt != expiresAt) {
-			update_ack_timeout(entry);
-		}
 	}
 }
 
@@ -182,7 +173,7 @@ next:
 	}
 }
 
-void on_updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt)
+void on_updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	add_ack_entry_if_not_found(yip, mac, ifname, expiresAt);
 }

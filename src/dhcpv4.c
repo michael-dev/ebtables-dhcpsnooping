@@ -48,21 +48,6 @@
 
 #define REQ_LIFETIME 300
 
-struct helper1 {
-	char* ifname;
-	uint8_t* mac;
-};
-
-void upd(struct cache_ack_entry* entry, void* ctx)
-{
-	struct helper1* tmp = (struct helper1*) ctx;
-	
-	if (memcmp(entry->mac, tmp->mac, ETH_ALEN) == 0 && strncmp(entry->bridge, tmp->ifname, IF_NAMESIZE) == 0) {
-		entry->expiresAt = 0;
-		updated_lease(entry->mac, &entry->ip, entry->bridge, 0);
-	}
-}
-
 /**
  * This method handles IPv4 packets.
  */
@@ -225,15 +210,14 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 		uint32_t now = time(NULL);
 		uint32_t expiresAt = now + leaseTime;
 		add_ack_entry_if_not_found(&yip, mac, ifname, expiresAt);
-		updated_lease(mac, &yip, ifname, expiresAt);
+		updated_lease(mac, &yip, ifname, expiresAt, UPDATED_LEASE_FROM_DHCP);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGACK) {
 		eprintf(DEBUG_DHCP,  " * unsoliciated DHCP ACK");
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGRELEASE) {
 		char str_ifname[IFNAMSIZ];
 		strncpy(str_ifname, ifname, IFNAMSIZ);
-		struct helper1 tmp = { str_ifname, mac };
-		ack_update(upd, &tmp);
-		updated_lease(mac, &yip, ifname, -1);
+		add_ack_entry_if_not_found(&yip, mac, ifname, -1);
+		updated_lease(mac, &yip, ifname, -1, UPDATED_LEASE_FROM_DHCP);
 	} else {
 		eprintf(DEBUG_DHCP,  "ERR: invalid dhcp_mode");
 	}

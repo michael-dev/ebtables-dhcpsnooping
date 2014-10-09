@@ -125,8 +125,12 @@ retry:
 	return ret;
 }
 
-void mysql_update_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt)
+void mysql_update_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
+	/* only write DHCP ACK packet changes back */
+	if (reason != UPDATED_LEASE_FROM_DHCP)
+		return;
+
 	/* the mysql commands are both run always, as the initial entry might have been created on another device. */
 	/* though, we restrict ACKs to be received on APs that saw the request - no roaming between REQ/ACK */
 	/* add to mysql */
@@ -177,7 +181,7 @@ int mysql_update_lease_from_sql(const char* ifname, const uint8_t* mac, const st
 	mysql_free_result(result);
 	if (*expiresAt != newExpiresAt) {
 		*expiresAt = newExpiresAt;
-		updated_lease(mac, ip, ifname, *expiresAt);
+		updated_lease(mac, ip, ifname, *expiresAt, UPDATED_LEASE_FROM_SQL);
 	}
 
 	return 1;
