@@ -197,13 +197,8 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 
 	/** update cache */
 	if (dhcpmsgtype == LIBNET_DHCP_MSGREQUEST) {
-		struct cache_req_entry* entry = get_req_entry(mac, ifname);
 		uint32_t expiresAt = time(NULL) + REQ_LIFETIME;
-		if (entry == NULL) {
-			add_req_entry(mac, ifname, expiresAt);
-		} else {
-			entry->expiresAt = expiresAt;
-		}
+		add_req_entry_if_not_found(mac, ifname, expiresAt);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGACK
 	           && is_local(mac, ifname)
 		  ) {

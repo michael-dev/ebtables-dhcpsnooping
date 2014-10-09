@@ -29,6 +29,16 @@
 #include <time.h>
 #include <string.h>
 #include <signal.h>
+#include <netinet/ether.h>
+#include <net/if.h>
+
+struct cache_req_entry 
+{
+	char bridge[IF_NAMESIZE];
+	uint8_t mac[ETH_ALEN];
+	uint32_t expiresAt;
+	struct cache_req_entry* next;
+};
 
 static struct cache_req_entry* globalReqCache = NULL;
 
@@ -63,6 +73,16 @@ struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, co
 	entry->next = globalReqCache;
 	globalReqCache = entry;
 	return entry;
+}
+
+void add_req_entry_if_not_found(const uint8_t* mac, const char* ifname, const uint32_t expiresAt) 
+{
+	struct cache_req_entry* entry = get_req_entry(mac, ifname);
+	if (entry == NULL) {
+		add_req_entry(mac, ifname, expiresAt);
+	} else {
+		entry->expiresAt = expiresAt;
+	}
 }
 
 void check_expired_req(void *ctx)
