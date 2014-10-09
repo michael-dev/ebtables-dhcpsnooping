@@ -169,7 +169,7 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 			eprintf(DEBUG_ERROR, "missing bridge ifname: %s (%d)", strerror(errno), errno);
 			goto out;
 		}
-		eprintf(DEBUG_NEIGH | DEBUG_VERBOSE, "got %s, lladdr = %s, family=AF_BRIDGE iface=%s br-iface=%s", (type == RTM_NEWNEIGH ? "NEWNEIGH" : "DELNEIGH" ), lladdr, linkifname, bridgeifname);
+		eprintf(DEBUG_NEIGH, "got %s, lladdr = %s, family=AF_BRIDGE iface=%s br-iface=%s", (type == RTM_NEWNEIGH ? "NEWNEIGH" : "DELNEIGH" ), lladdr, linkifname, bridgeifname);
 
 		if (strncmp(linkifname, ROAMIFPREFIX, strlen(ROAMIFPREFIX)) != 0) {
 //			eprintf(DEBUG_NEIGH, "prefix of ifname is not %s -> DELETE\n", ROAMIFPREFIX);
@@ -183,13 +183,18 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 		switch (type) {
 			case RTM_DELNEIGH:
 				if (entry) {
-					eprintf(DEBUG_GENERAL, "delete neigh %s on %s on %s", lladdr, (bridgeifname ? bridgeifname : "NULL"), (linkifname ? linkifname : "NULL"));
+					eprintf(DEBUG_GENERAL | DEBUG_VERBOSE, "delete neigh %s on %s", lladdr, entry->bridge);
 					entry->enabled = 0;
 				}
 			break;
 			case RTM_NEWNEIGH:
 				assert(bridgeifname);
-				eprintf(DEBUG_GENERAL, "add neigh %s on %s on %s", lladdr, (bridgeifname ? bridgeifname : "NULL"), (linkifname ? linkifname : "NULL"));
+				int class = DEBUG_GENERAL;
+				if (!entry)
+					class |= DEBUG_VERBOSE;
+				else if (!entry->enabled)
+					class |= DEBUG_VERBOSE;
+				eprintf(class, "add neigh %s on %s on %s", lladdr, (bridgeifname ? bridgeifname : "NULL"), (linkifname ? linkifname : "NULL"));
 				if (!entry)
 					add_fdb_entry((uint8_t*) mac, bridgeifname, 1, ifidx);
 				else
