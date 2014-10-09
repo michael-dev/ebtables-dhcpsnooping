@@ -35,6 +35,7 @@
 
 #include <net/if.h>
 #include <netinet/ether.h>
+#include "ether_ntoa.h"
 #include <stdint.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -134,10 +135,10 @@ void check_expired_ack(void *ctx)
 		expiresAt = entry->expiresAt;
 
 		if (ctx && !(expiresAt < now)) {
-			eprintf(DEBUG_ERROR, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d has not yet expired", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
+			eprintf(DEBUG_ERROR, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d has not yet expired", ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
 		}
 
-		eprintf(DEBUG_DHCP, "check for expired dhcp ack: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
+		eprintf(DEBUG_DHCP, "check for expired dhcp ack: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
 		if (update_lease(entry->bridge, entry->mac, &entry->ip, &expiresAt) >= 0)
 		{
 			if (expiresAt != entry->expiresAt)
@@ -147,10 +148,10 @@ void check_expired_ack(void *ctx)
 		}
 
 		if (ctx && !(expiresAt < now)) {
-			eprintf(DEBUG_VERBOSE, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d was updated remotely and has not yet expired (we likely missed a UDP packet)", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
+			eprintf(DEBUG_VERBOSE, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d was updated remotely and has not yet expired (we likely missed a UDP packet)", ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
 		}
 
-		eprintf(DEBUG_DHCP, "check for expired dhcp ack after update cb: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
+		eprintf(DEBUG_DHCP, "check for expired dhcp ack after update cb: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
 		if (expiresAt < now) {
 			ebtables_del(&entry->ip, entry->mac, entry->bridge);
 			if (prev == NULL) {
@@ -178,7 +179,7 @@ void dump_ack(int s)
 	uint32_t now = time(NULL);
 	struct cache_ack_entry* entry = globalAckCache;
 	while (entry != NULL) {
-		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "ack: MAC: %s IP: %s BRIDGE: %s expires in %d" , ether_ntoa((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, (int) entry->expiresAt - (int) now);
+		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "ack: MAC: %s IP: %s BRIDGE: %s expires in %d" , ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, (int) entry->expiresAt - (int) now);
 		entry = entry->next;
 	}
 }

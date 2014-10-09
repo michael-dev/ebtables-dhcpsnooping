@@ -41,6 +41,7 @@
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #include <netinet/ether.h>
+#include "ether_ntoa.h"
 #include <libnet.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -181,15 +182,15 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	}
 
 	if (dhcpmsgtype == LIBNET_DHCP_MSGACK) {
-		eprintf(DEBUG_DHCP| DEBUG_VERBOSE,  "DHCP ACK MAC: %s IP: %s BRIDGE: %s LeaseTime: %d" , ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), ifname, leaseTime);
+		eprintf(DEBUG_DHCP| DEBUG_VERBOSE,  "DHCP ACK MAC: %s IP: %s BRIDGE: %s LeaseTime: %d" , ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, leaseTime);
 		if (tmp_yip == 0) {
 			eprintf(DEBUG_DHCP, "DHCP ACK IP 0.0.0.0 ignored");
 			return;
 		}
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGREQUEST) {
-		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REQ MAC: %s BRIDGE: %s" , ether_ntoa((struct ether_addr *)mac), ifname);
+		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REQ MAC: %s BRIDGE: %s" , ether_ntoa_z((struct ether_addr *)mac), ifname);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGRELEASE) {
-		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REL MAC: %s BRIDGE: %s" , ether_ntoa((struct ether_addr *)mac), ifname);
+		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REL MAC: %s BRIDGE: %s" , ether_ntoa_z((struct ether_addr *)mac), ifname);
 	} else {
 		eprintf(DEBUG_DHCP,  "ERROR - dhcp_mode is invalud");
 		return;

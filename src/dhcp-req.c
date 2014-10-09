@@ -30,6 +30,7 @@
 #include <string.h>
 #include <signal.h>
 #include <netinet/ether.h>
+#include "ether_ntoa.h"
 #include <net/if.h>
 
 struct cache_req_entry 
@@ -115,7 +116,7 @@ void dump_req(int s)
 	uint32_t now = time(NULL);
 	struct cache_req_entry* entry = globalReqCache;
 	while (entry != NULL) {
-		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "req: MAC: %s BRIDGE: %s expires in %d" , ether_ntoa((struct ether_addr *)entry->mac), entry->bridge, (int) entry->expiresAt - (int) now);
+		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "req: MAC: %s BRIDGE: %s expires in %d" , ether_ntoa_z((struct ether_addr *)entry->mac), entry->bridge, (int) entry->expiresAt - (int) now);
 		entry = entry->next;
 	}
 }

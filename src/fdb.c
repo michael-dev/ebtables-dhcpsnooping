@@ -27,6 +27,9 @@
 #include "event.h"
 #include "timer.h"
 
+#include <netinet/ether.h>
+#include "ether_ntoa.h"
+
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
@@ -109,7 +112,7 @@ void dump_fdb(int s)
 {
 	struct cache_fdb_entry* entry = globalFdbCache;
 	while (entry != NULL) {
-		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "fdb: MAC: %s BRIDGE: %s %s" , ether_ntoa((struct ether_addr *)entry->mac), entry->bridge, (entry->enabled ? "enabled" : "disabled"));
+		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "fdb: MAC: %s BRIDGE: %s %s" , ether_ntoa_z((struct ether_addr *)entry->mac), entry->bridge, (entry->enabled ? "enabled" : "disabled"));
 		entry = entry->next;
 	}
 }
