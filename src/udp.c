@@ -39,6 +39,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <time.h>
+#include <unistd.h>
 
 #define NETWORKPORT 1000
 #define NETWORKADDR "10.30.0.0"
@@ -47,6 +48,7 @@
 static struct in_addr broadcastAddr;
 static struct in_addr networkAddr;
 static struct in_addr networkMask;
+static char myhostname[1024];
 
 void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
@@ -58,7 +60,7 @@ void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname
 	if (reason != UPDATED_LEASE_FROM_DHCP)
 		return;
 
-	snprintf(msg, sizeof(msg), "%s\t%s\t%s\t%d", ifname, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), (int) (expiresAt - time(NULL)));
+	snprintf(msg, sizeof(msg), "%s\t%s\t%s\t%d\t%s", ifname, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), (int) (expiresAt - time(NULL)), myhostname);
 
 	/* Create socket for sending/receiving datagrams */
 	if (!broadcastSock) {
@@ -95,21 +97,28 @@ void handle_udp_message(char* buf, int recvlen, char* from)
 	/* split message by \t */
 	char* pos = buf;
 	char* ifname = pos;
-	while (pos < buf + recvlen - 3 && *pos != '\t')
+	while (pos < buf + recvlen - 4 && *pos != '\t')
 		pos++;
 	*pos = '\0'; // terminate str_ifname
 	char* str_mac = ++pos;
-	while (pos < buf + recvlen - 2 && *pos != '\t')
+	while (pos < buf + recvlen - 3 && *pos != '\t')
 		pos++;
 	*pos = '\0'; // terminate str_mac
 	char* str_ip = ++pos;
-	while (pos < buf + recvlen - 1 && *pos != '\t')
+	while (pos < buf + recvlen - 2 && *pos != '\t')
 		pos++;
 	*pos = '\0'; // terminate str_ip
 	char* str_expire = ++pos;
-	while (pos < buf + recvlen - 0 && *pos != '\t')
+	while (pos < buf + recvlen - 1 && *pos != '\t')
 		pos++;
 	*pos = '\0'; // terminate str_expire
+	char* str_hostname = ++pos;
+	while (pos < buf + recvlen - 0 && *pos != '\t')
+		pos++;
+	*pos = '\0'; // terminate str_hostname
+
+	if (strncmp(myhostname, str_hostname, sizeof(myhostname)) == 0)
+		return; // message from ourself
 
 	uint8_t* mac = (uint8_t*) ether_aton(str_mac);
 	struct in_addr yip;
@@ -168,6 +177,9 @@ void udp_receive(int udpsocket, void* ctx)
 
 static __attribute__((constructor)) void udp_init()
 {
+	gethostname(myhostname, sizeof(myhostname));
+	myhostname[sizeof(myhostname)-1]='\0';
+
 	inet_aton(NETWORKADDR, &networkAddr);
 	inet_aton(NETWORKMASK, &networkMask);
 	broadcastAddr.s_addr = networkAddr.s_addr | (~networkMask.s_addr);
