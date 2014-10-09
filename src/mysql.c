@@ -22,8 +22,8 @@
 #ifdef __USE_MYSQL__
 #include "debug.h"
 #include "dhcp.h"
-#include "dhcp-ack.h"
 #include "cmdline.h"
+#include "timer.h"
 
 #include <signal.h>
 #include <time.h>
@@ -123,6 +123,18 @@ retry:
 		eprintf(DEBUG_ERROR, "mysql error (no retry) %s - mysql query %s", mysql_error(&mysql), sql);
 	}
 	return ret;
+}
+
+void mysql_remove_old_leases_from_db(void *ctx)
+{
+	char sql[1024];
+	
+	if (!mysql_connected())
+		return;
+	
+	/* update mysql */
+	snprintf(sql, sizeof(sql), "DELETE FROM " MYSQLLEASETABLE " WHERE validUntil < UNIX_TIMESTAMP()");
+	mysql_query_errprint(sql);
 }
 
 void mysql_update_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
@@ -243,5 +255,6 @@ static __attribute__((constructor)) void dhcp_mysql_init()
 	add_update_lease_hook(mysql_update_lease_from_sql);
 	add_updated_lease_hook(mysql_update_lease);
 	add_lease_lookup_by_mac(mysql_iterate_lease_for_ifname_and_mac);
+	cb_add_timer(PRUNE_INTERVAL, 1, NULL, mysql_remove_old_leases_from_db);
 }
 #endif
