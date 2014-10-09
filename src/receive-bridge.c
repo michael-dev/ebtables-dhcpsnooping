@@ -178,32 +178,31 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 	}
 
 	struct ether_addr *mac = ether_aton(lladdr);
+	int exists;
 	{
 		struct cache_fdb_entry* entry = get_fdb_entry((uint8_t*) mac, bridgeifname, ifidx);
+		exists = (entry && entry->enabled);
 		switch (type) {
 			case RTM_DELNEIGH:
-				if (entry) {
+				if (exists) {
 					eprintf(DEBUG_GENERAL | DEBUG_VERBOSE, "delete neigh %s on %s", lladdr, entry->bridge);
 					entry->enabled = 0;
 				}
 			break;
 			case RTM_NEWNEIGH:
-				assert(bridgeifname);
-				int class = DEBUG_GENERAL;
-				if (!entry)
-					class |= DEBUG_VERBOSE;
-				else if (!entry->enabled)
-					class |= DEBUG_VERBOSE;
-				eprintf(class, "add neigh %s on %s on %s", lladdr, (bridgeifname ? bridgeifname : "NULL"), (linkifname ? linkifname : "NULL"));
-				if (!entry)
-					add_fdb_entry((uint8_t*) mac, bridgeifname, 1, ifidx);
-				else
-					entry->enabled = 1;
+				if (!exists) {
+					assert(bridgeifname);
+					eprintf(DEBUG_GENERAL | DEBUG_VERBOSE, "add neigh %s on %s on %s", lladdr, (bridgeifname ? bridgeifname : "NULL"), (linkifname ? linkifname : "NULL"));
+					if (!entry)
+						add_fdb_entry((uint8_t*) mac, bridgeifname, 1, ifidx);
+					else
+						entry->enabled = 1;
+				}
 			break;
 		}
 	}
 
-	if (type == RTM_NEWNEIGH) {
+	if (type == RTM_NEWNEIGH && !exists) {
 		lease_lookup_by_mac(bridgeifname, (uint8_t*) mac, updated_lease);
 	}
 out:
