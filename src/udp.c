@@ -129,13 +129,8 @@ void handle_udp_message(char* buf, int recvlen, char* from)
 	int timedelta = atoi(str_expire);
 	uint32_t expire = 0;
 	if (timedelta > 0)
-		expire = time(NULL) + atoi(str_expire);
+		expire = time(NULL) + timedelta;
 		
-	if (update_lease(ifname, mac, &yip, &expire) < 0) {
-		eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: sql query for lease MAC: %s IP: %s VLAN: %s failed", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname);
-		return;
-	}
-
 	/* parse message */
 	if (if_nametoindex(ifname) == 0) {
 		eprintf(DEBUG_UDP,  "Interface %s unknown: %s (%d)", ifname, strerror(errno), errno);
@@ -144,6 +139,12 @@ void handle_udp_message(char* buf, int recvlen, char* from)
 
 	if (!is_local(mac, ifname)) {
 		eprintf(DEBUG_UDP,  "MAC %s locally unknown", str_mac);
+		return;
+	}
+
+	/* do not easily accept remotely given expireAt */
+	if (update_lease(ifname, mac, &yip, &expire) < 0) {
+		eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: sql query for lease MAC: %s IP: %s VLAN: %s failed", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname);
 		return;
 	}
 
