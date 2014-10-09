@@ -1,0 +1,53 @@
+Flows
+
+DHCPv4 Packet incoming
+ 1. receive-nflog
+ 2. packet_cb
+ 3. dhcpv4_got_packet
+ if REQ:
+ 4. add_req_if_not_found
+ if ACK:
+ 4. updated_lease
+ 4.1 sendLease
+ 4.2 mysql_update_lease
+ 4.3 dhcp_update_ack
+ 4.3.1. add_ebtables
+ 4.3.2. update_timer
+
+DHCP-ACK Timer
+ 1. check_expired_ack
+ 2. update_lease
+ 3. updated_lease (maybe)
+ 3.1 sendLease
+ 3.2 mysql_update_lease
+ 3.3 dhcp_update_ack
+ 3.3.1. add_ebtables
+ 3.3.2. update_timer
+ 4. del_ebtables
+
+UDP packet incoming
+ 1. handle_udp_message
+ 2. update_lease
+ 3. is_local
+ 3.1 get_req_entry_wrp (DHCP REQ)
+ 3.2 get_fdb_entry_wrp
+ 4. updated_lease
+ 4.1 sendLease
+ 4.2 mysql_update_lease
+ 4.3 dhcp_update_ack
+ 4.3.1. add_ebtables
+ 4.3.2. update_timer
+
+Learn new mac on bridge
+ 1. bridge_receive
+ 2. update_fdb / add_fdb_entry / get_fdb_entry
+ 3. lease_lookup_by_mac
+ 4. updated_lease
+ 4.1 sendLease
+ 4.2 mysql_update_lease
+ 4.3 dhcp_update_ack
+ 4.3.1. add_ebtables
+ 4.3.2. update_timer
+
+MYSQL Timer
+ 1. mysql_remove_old_leases_from_db
