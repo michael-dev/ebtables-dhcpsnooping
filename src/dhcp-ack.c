@@ -97,7 +97,7 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 	return entry;
 }
 
-void on_updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
+void dhcp_update_ack(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	int modified = 0;
 	uint32_t now =time(NULL);
@@ -187,6 +187,6 @@ static __attribute__((constructor)) void dhcp_ack_init()
 {
 	cb_add_timer(PRUNE_INTERVAL, 1, NULL, check_expired_ack);
 	cb_add_signal(SIGUSR1, dump_ack);
-	add_updated_lease_hook(on_updated_lease);
+	add_updated_lease_hook(dhcp_update_ack);
 }
 
