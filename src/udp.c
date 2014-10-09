@@ -135,7 +135,7 @@ void handle_udp_message(char* buf, int recvlen)
 
 	/* add lease */
 	eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: adding new lease MAC: %s IP: %s VLAN: %s expiresAt:%d", ether_ntoa((struct ether_addr *)mac), inet_ntoa(yip), ifname, expire);
-	add_ack_entry_if_not_found(&yip, mac, ifname, expire);
+	add_ack_entry_if_not_found(&yip, mac, ifname, expire, UPDATED_LEASE_FROM_UDP);
 }				
 
 void udp_receive(int udpsocket, void* ctx) {

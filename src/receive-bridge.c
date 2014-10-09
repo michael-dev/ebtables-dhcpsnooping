@@ -45,8 +45,8 @@
 
 #include "fdb.h"
 #include "debug.h"
-#include "dhcp-ack.h"
 #include "dhcp.h"
+#include "dhcp-ack.h"
 #include "event.h"
 
 #define ROAMIFPREFIX "wl"

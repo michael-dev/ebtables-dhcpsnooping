@@ -204,15 +204,13 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 		  ) {
 		uint32_t now = time(NULL);
 		uint32_t expiresAt = now + leaseTime;
-		add_ack_entry_if_not_found(&yip, mac, ifname, expiresAt);
-		updated_lease(mac, &yip, ifname, expiresAt, UPDATED_LEASE_FROM_DHCP);
+		add_ack_entry_if_not_found(&yip, mac, ifname, expiresAt, UPDATED_LEASE_FROM_DHCP);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGACK) {
 		eprintf(DEBUG_DHCP,  " * unsoliciated DHCP ACK");
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGRELEASE) {
 		char str_ifname[IFNAMSIZ];
 		strncpy(str_ifname, ifname, IFNAMSIZ);
-		add_ack_entry_if_not_found(&yip, mac, ifname, -1);
-		updated_lease(mac, &yip, ifname, -1, UPDATED_LEASE_FROM_DHCP);
+		add_ack_entry_if_not_found(&yip, mac, ifname, -1, UPDATED_LEASE_FROM_DHCP);
 	} else {
 		eprintf(DEBUG_DHCP,  "ERR: invalid dhcp_mode");
 	}

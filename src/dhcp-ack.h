@@ -36,6 +36,7 @@ struct cache_ack_entry
 
 typedef void (*ack_update_cb)(struct cache_ack_entry* entry, void* ctx);
 
-void add_ack_entry_if_not_found(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt);
+/* store ack entry and trigger updated_lease */
+void add_ack_entry_if_not_found(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason);
 void add_ack_update_cb(ack_update_cb cb, void* ctx);
 

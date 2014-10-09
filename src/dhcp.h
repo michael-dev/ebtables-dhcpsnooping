@@ -28,7 +28,7 @@ enum t_lease_update_src { UPDATED_LEASE_FROM_DHCP, UPDATED_LEASE_FROM_UDP, UPDAT
 typedef void* (*is_local_cb)(const uint8_t* mac, const char* ifname);
 typedef int (*update_lease_cb)(const char* ifname, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt);
 typedef void (*updated_lease_cb)(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason);
-typedef void (*lease_cb)(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt);
+typedef void (*lease_cb)(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason);
 typedef void (*lease_lookup_by_mac_cb)(const char* ifname, const uint8_t* mac, lease_cb cb);
 
 /* check if mac is present locally (i.e. on wifi port) */

@@ -87,7 +87,7 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 	return entry;
 }
 
-void add_ack_entry_if_not_found(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt) 
+void add_ack_entry_if_not_found(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason) 
 {
 	int modified = 0;
 	uint32_t now =time(NULL);
@@ -103,6 +103,7 @@ void add_ack_entry_if_not_found(const struct in_addr* yip, const uint8_t* mac, c
 	}
 	if (modified) {
 		update_ack_timeout(entry);
+		updated_lease(mac, yip, ifname, expiresAt, reason);
 	}
 }
 
@@ -175,7 +176,7 @@ next:
 
 void on_updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
-	add_ack_entry_if_not_found(yip, mac, ifname, expiresAt);
+	add_ack_entry_if_not_found(yip, mac, ifname, expiresAt, reason);
 }
 
 void dump_ack(int s)

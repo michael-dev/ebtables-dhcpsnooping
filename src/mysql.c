@@ -236,7 +236,7 @@ void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* m
 			continue;
 		}
 		uint32_t expiresAt = atoi(row[1]) + now;
-		cb (&yip, mac, ifname, expiresAt);
+		cb (&yip, mac, ifname, expiresAt, UPDATED_LEASE_FROM_SQL);
 	}
 	mysql_free_result(result);
 out2:
