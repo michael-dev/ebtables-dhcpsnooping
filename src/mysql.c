@@ -254,7 +254,7 @@ static __attribute__((constructor)) void dhcp_mysql_init()
 	}
 
 	add_update_lease_hook(mysql_update_lease_from_sql);
-	add_updated_lease_hook(mysql_update_lease);
+	add_updated_lease_hook(mysql_update_lease,2);
 	add_lease_lookup_by_mac(mysql_iterate_lease_for_ifname_and_mac);
 	cb_add_timer(PRUNE_INTERVAL, 1, NULL, mysql_remove_old_leases_from_db);
 }

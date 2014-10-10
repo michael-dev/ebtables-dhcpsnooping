@@ -41,7 +41,7 @@ int is_local (const uint8_t* mac, const char* ifname);
 void add_update_lease_hook(update_lease_cb cb);
 int update_lease(const char* ifname, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt);
 /* updated_lease_hook: called whenever the locally stored leases are modified. */
-void add_updated_lease_hook(updated_lease_cb cb);
+void add_updated_lease_hook(updated_lease_cb cb, const int prio);
 void updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason);
 /* lease_lookup_by_mac_hook: called whenever a lease needs to be looked up externally (i.e. if a mac is learned locally)
  * the lookup function is passed a callback and it is expected to call the given callback with the data found.

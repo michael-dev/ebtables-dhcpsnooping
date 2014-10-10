@@ -188,6 +188,6 @@ static __attribute__((constructor)) void dhcp_ack_init()
 {
 	cb_add_timer(PRUNE_INTERVAL, 1, NULL, check_expired_ack);
 	cb_add_signal(SIGUSR1, dump_ack);
-	add_updated_lease_hook(dhcp_update_ack);
+	add_updated_lease_hook(dhcp_update_ack,1);
 }
 

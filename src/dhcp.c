@@ -42,6 +42,7 @@ static struct update_lease_entry* globalUpdateLeaseHook = NULL;
 struct updated_lease_entry 
 {
 	updated_lease_cb cb;
+	int prio;
 	struct updated_lease_entry *next;
 };
 static struct updated_lease_entry* globalUpdatedLeaseHook = NULL;
@@ -95,7 +96,7 @@ int update_lease(const char* ifname, const uint8_t* mac, const struct in_addr* i
 	return 0;
 }
 
-void add_updated_lease_hook(updated_lease_cb cb) 
+void add_updated_lease_hook(updated_lease_cb cb, const int prio) 
 {
 	struct updated_lease_entry *entry = malloc(sizeof(struct updated_lease_entry));
 	if (!entry) {
@@ -104,8 +105,22 @@ void add_updated_lease_hook(updated_lease_cb cb)
 	}
 	memset(entry, 0, sizeof(struct updated_lease_entry));
 	entry->cb = cb;
-	entry->next = globalUpdatedLeaseHook;
-	globalUpdatedLeaseHook = entry;
+	entry->prio = prio;
+
+	struct updated_lease_entry *prev = NULL;
+	struct updated_lease_entry *curr = globalUpdatedLeaseHook;
+
+	/* find entry curr that is to be the first after the new element */
+	while (curr && (curr->prio <= prio)) {
+		prev = curr;
+		curr = curr->next;
+	}
+
+	entry->next = curr;
+	if (prev)
+		prev->next = entry;
+	else
+		globalUpdatedLeaseHook = entry;
 }
 
 void updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)

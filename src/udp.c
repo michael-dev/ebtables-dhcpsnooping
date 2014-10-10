@@ -213,7 +213,7 @@ static __attribute__((constructor)) void udp_init()
 	}
 
 	cb_add_handle(udpsocket, NULL, udp_receive);
-	add_updated_lease_hook(sendLease);
+	add_updated_lease_hook(sendLease,3);
 }
 
 #endif
