@@ -37,15 +37,12 @@ void edprint(const int level, const char* msg, const char* file, const int line,
 #ifdef DEBUG
 	char syslogbuf[4096];
 	const char *bname;
-	static int open = 0;
-	if (!open) {
-		openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
-		open = 1;
-	}
 	if (level & debug) {
 		bname = (strrchr(file, '/') ? strrchr(file, '/') + 1 : file);
 		snprintf(syslogbuf, sizeof(syslogbuf), "%s (%s:%d): %s", fnc, bname, line, msg);
+		openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 		syslog(LOG_INFO, syslogbuf, strlen(syslogbuf));
+		closelog();
 	};
 #endif
 }

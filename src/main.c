@@ -22,7 +22,6 @@
 #include "cmdline.h"
 #include "event.h"
 #include "debug.h"
-#include <syslog.h>
 #include <stdio.h>
 
 int main(int argc, char *argv[])
