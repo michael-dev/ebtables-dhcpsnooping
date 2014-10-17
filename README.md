@@ -40,8 +40,8 @@ Example ebtables rules (IPv4 only) for APs
 ```
 GWMAC=00:00:00:00:00:01
 DHCPMAC=00:00:00:00:00:02
-BRIDGE=br*
-WLAN=wlan*
+BRIDGE=br+
+WLAN=wlan+
 
 ebtables -F FORWARD
 # protect DHCP MAC and GW MAC - they not in WLAN
