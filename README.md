@@ -27,6 +27,44 @@ dhcp acks and deny of service attacks.
 SIGALARM is used internally for clearing expires entries.
 SIGUSR1 triggers dumping cache tables.
 
+Use case
+========
+
+On AccessPoints running Linux and bridging or routing local clients that want to prevent users from using IP addresses not assigned using DHCP to them.
+
+On Switches running Linux and aiming at providing arp-protection to the clients by preventing clients from using IP addresses not assigned using DHCP to them.
+
+Example ebtables rules (IPv4 only) for APs
+-------------------------------------------
+
+```
+GWMAC=00:00:00:00:00:01
+DHCPMAC=00:00:00:00:00:02
+BRIDGE=br*
+WLAN=wlan*
+
+ebtables -F FORWARD
+-- protect DHCP MAC and GW MAC - they not in WLAN
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE -s $GWMAC -j DROP
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE -s $DHCPMAC -j DROP
+
+-- IP source address filter
+ebtables -N dhcpsnooping -P DROP
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE --proto ipv4 -j dhcpsnooping
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE --proto arp -j dhcpsnooping
+
+ebtables -A dhcpsnooping --proto ipv4 --proto ipv4 --ip-src-address 0.0.0.0 -j RETURN
+ebtables -A dhcpsnooping --proto arp --proto arp --arp-src-address 0.0.0.0 -j RETURN
+
+-- = send DHCPv4 packets to dhcpsnoopingd =
+ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE \
+         --proto ipv4 --ip-protocol UDP --ip-source-port 68 --ip-destination-port 67 --nflog-group 1 -j ACCEPT
+ebtables -A FORWARD -s $DHCPMAC --logical-in $BRIDGE \
+         --proto ipv4 --ip-protocol UDP --ip-source-port 67 --ip-destination-port 68 --nflog-group 1 -j ACCEPT
+ebtables -A FORWARD --logical-in $BRIDGE \
+         --proto ipv4 --ip-protocol UDP --ip-source-port 67 --ip-destination-port 68 -j DROP
+```
+
 Roaming support
 ===============
 
