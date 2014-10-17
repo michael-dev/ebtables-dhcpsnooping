@@ -44,11 +44,11 @@ BRIDGE=br*
 WLAN=wlan*
 
 ebtables -F FORWARD
--- protect DHCP MAC and GW MAC - they not in WLAN
+# protect DHCP MAC and GW MAC - they not in WLAN
 ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE -s $GWMAC -j DROP
 ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE -s $DHCPMAC -j DROP
 
--- IP source address filter
+# IP source address filter
 ebtables -N dhcpsnooping -P DROP
 ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE --proto ipv4 -j dhcpsnooping
 ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE --proto arp -j dhcpsnooping
@@ -56,7 +56,7 @@ ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE --proto arp -j dhcpsnooping
 ebtables -A dhcpsnooping --proto ipv4 --proto ipv4 --ip-src-address 0.0.0.0 -j RETURN
 ebtables -A dhcpsnooping --proto arp --proto arp --arp-src-address 0.0.0.0 -j RETURN
 
--- = send DHCPv4 packets to dhcpsnoopingd =
+# send DHCPv4 packets to dhcpsnoopingd and drop invalid DHCP packets
 ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE \
          --proto ipv4 --ip-protocol UDP --ip-source-port 68 --ip-destination-port 67 --nflog-group 1 -j ACCEPT
 ebtables -A FORWARD -s $DHCPMAC --logical-in $BRIDGE \
