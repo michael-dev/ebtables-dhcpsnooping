@@ -131,4 +131,4 @@ Dependencies
 TODO
 ----
 
-- Currently there is no IPv6 support (RA/DHCPv6)
+- Currently there is no IPv6 support, that is support for RouterAdvertisments and DHCPv6
