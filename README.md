@@ -128,3 +128,7 @@ Dependencies
 - Kernel headers
 - libnl-3
 
+TODO
+----
+
+- Currently there is no IPv6 support (RA/DHCPv6)
