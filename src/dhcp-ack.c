@@ -143,7 +143,7 @@ void check_expired_ack(void *ctx)
 		{
 			if (expiresAt != entry->expiresAt)
 			{
-				updated_lease(entry->mac, &entry->ip, entry->bridge,entry-> expiresAt, UPDATED_LEASE_FROM_EXTERNAL);
+				updated_lease(entry->mac, &entry->ip, entry->bridge, expiresAt, UPDATED_LEASE_FROM_EXTERNAL);
 			}
 		}
 
