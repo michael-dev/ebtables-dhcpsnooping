@@ -27,6 +27,16 @@ dhcp acks and deny of service attacks.
 SIGALARM is used internally for clearing expires entries.
 SIGUSR1 triggers dumping cache tables.
 
+ARP rewrite support
+-------------------
+
+Additionally, ebtables rules are generated to rewrite multicast arp requests to
+unicast arp requests if the destination mac is known by dhcpsnoopingd for a
+local authenticated station.
+
+This can be used to reduce multicast traffic and drop multicast arp requests
+not rewritten.
+
 Use case
 ========
 
@@ -43,10 +53,20 @@ DHCPMAC=00:00:00:00:00:02
 BRIDGE=br+
 WLAN=wlan+
 
+ebtables -t nat -F PREROUTING
+# ARP rewrite
+ebtables -t nat -N dhcpsnooping -P ACCEPT || true
+ebtables -t nat -F dhcpsnooping
+ebtables -t nat -A PREROUTING --logical-in $BRIDGE --proto arp \
+         --arp-op Request -d multicast -j dhcpsnooping
+
 ebtables -F FORWARD
 # protect DHCP MAC and GW MAC - they not in WLAN
 ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE -s $GWMAC -j DROP
 ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE -s $DHCPMAC -j DROP
+
+# filter multicast ARP not rewritten before going out to WLAN
+ebtables -A FORWARD -o $WLAN --logical-in $BRIDGE --proto arp -d multicast -j DROP
 
 # IP source address filter
 ebtables -N dhcpsnooping -P DROP
