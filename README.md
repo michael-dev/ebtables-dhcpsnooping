@@ -55,7 +55,7 @@ WLAN=wlan+
 
 ebtables -t nat -F PREROUTING
 # ARP rewrite
-ebtables -t nat -N dhcpsnooping -P ACCEPT || true
+ebtables -t nat -N dhcpsnooping -P RETURN || true
 ebtables -t nat -F dhcpsnooping
 ebtables -t nat -A PREROUTING --logical-in $BRIDGE --proto arp \
          --arp-op Request -d multicast -j dhcpsnooping
