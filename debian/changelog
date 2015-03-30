@@ -1,8 +1,9 @@
-dhcpsnoopingd-fem (0.1~20150332) UNRELEASED; urgency=low
+dhcpsnoopingd-fem (0.1~20150333) unstable; urgency=low
 
   * roaming
+  * fix network byte order
 
- -- Michael Braun <michael-dev@fami-braun.de>  Mon, 30 Mar 2015 18:31:24 +0200
+ -- Michael Braun <michael-dev@fami-braun.de>  Mon, 30 Mar 2015 19:17:18 +0200
 
 dhcpsnoopingd-fem (0.1~20150331) unstable; urgency=low
 
