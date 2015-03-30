@@ -76,7 +76,7 @@ void ebtables_del(const struct in_addr* yip, const uint8_t* mac, const char* ifn
 	         ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname);
 	ebtables_run(cmd);
 
-	snprintf(cmd, sizeof(cmd), EBTABLES " -t nat -D " CHAINNAME " --proto arp --arp-ip-dst %s --logical-in %s -j dnat --to-destination %s",
+	snprintf(cmd, sizeof(cmd), EBTABLES " -t nat -D " CHAINNAME " --proto arp --arp-ip-dst %s --logical-in %s -j dnat --to-destination %s --dnat-target RETURN",
 	         inet_ntoa(*yip), ifname, ether_ntoa_z((struct ether_addr *)mac));
 	ebtables_run(cmd);
 }
