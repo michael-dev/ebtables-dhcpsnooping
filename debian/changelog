@@ -1,3 +1,9 @@
+dhcpsnoopingd-fem (0.1~20150332) UNRELEASED; urgency=low
+
+  * roaming
+
+ -- Michael Braun <michael-dev@fami-braun.de>  Mon, 30 Mar 2015 18:31:24 +0200
+
 dhcpsnoopingd-fem (0.1~20150331) unstable; urgency=low
 
   * add init script

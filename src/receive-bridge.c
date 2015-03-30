@@ -48,8 +48,12 @@
 #include "dhcp.h"
 #include "dhcp-ack.h"
 #include "event.h"
+#include "cmdline.h"
 
 #define ROAMIFPREFIX "wl"
+static int numRoamIfPrefix = 0;
+static char **roamIfPrefix = NULL;
+
 struct helper2 {
 	char* ifname;
 	int ifidx;
@@ -171,10 +175,12 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 		}
 		eprintf(DEBUG_NEIGH, "got %s, lladdr = %s, family=AF_BRIDGE iface=%s br-iface=%s", (type == RTM_NEWNEIGH ? "NEWNEIGH" : "DELNEIGH" ), lladdr, linkifname, bridgeifname);
 
-		if (strncmp(linkifname, ROAMIFPREFIX, strlen(ROAMIFPREFIX)) != 0) {
-//			eprintf(DEBUG_NEIGH, "prefix of ifname is not %s -> DELETE\n", ROAMIFPREFIX);
+		int match = 0;
+		for (int i = 0; i < numRoamIfPrefix; i++)
+			match |= (strncmp(linkifname, roamIfPrefix[i], strlen(roamIfPrefix[i])) == 0);
+
+		if (!match)
 			type = RTM_DELNEIGH;
-		}
 	}
 
 	struct ether_addr *mac = ether_aton(lladdr);
@@ -250,8 +256,47 @@ void bridge_receive(int s, void* ctx)
 	}
 }
 
+void add_roamifprefix(char* ifname) {
+	char** tmp = realloc(roamIfPrefix, (numRoamIfPrefix+1) * sizeof(*roamIfPrefix));
+	if (!tmp) {
+		eprintf(DEBUG_ERROR, "%s:%d %s error parsing command line", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		exit(1);
+	}
+
+	tmp[numRoamIfPrefix] = calloc(strlen(ifname)+1, sizeof(char));
+	if (!tmp[numRoamIfPrefix]) {
+		eprintf(DEBUG_ERROR, "%s:%d %s error parsing command line", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		exit(1);
+	}
+	strcpy(tmp[numRoamIfPrefix], ifname);
+	roamIfPrefix = tmp;
+	numRoamIfPrefix++;
+}
+
+void set_roamifprefix(int c) {
+	static int called = 0;
+
+	if (!optarg)
+		return;
+
+	if (!called) {
+		called++;
+		numRoamIfPrefix = 0;
+	}
+
+	fprintf(stderr, "roaming if prefix %s\n", optarg);
+	add_roamifprefix(optarg);
+}
+
 static __attribute__((constructor)) void bridge_init()
 {
+	add_roamifprefix(ROAMIFPREFIX);
+
+	{
+		struct option long_option = {"roamifprefix", required_argument, 0, 0};
+		add_option_cb(long_option, set_roamifprefix);
+	}
+
 	eprintf(DEBUG_ERROR,  "Listen to ROUTE->NEIGH notifications");
 	/* connect to netlink route to get notified of bridges learning new addresses */
 	struct nl_sock *nf_sock_route;
@@ -280,6 +325,7 @@ static __attribute__((constructor)) void bridge_init()
 
 	int rffd = nl_socket_get_fd(nf_sock_route);
 	cb_add_handle(rffd, nf_sock_route, bridge_receive);
+
 }
 
 #endif

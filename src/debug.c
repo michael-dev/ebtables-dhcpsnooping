@@ -34,17 +34,19 @@ void set_debug_flag(int c) {
 
 void edprint(const int level, const char* msg, const char* file, const int line, const char* fnc)
 {
-#ifdef DEBUG
 	char syslogbuf[4096];
 	const char *bname;
 	if (level & debug) {
 		bname = (strrchr(file, '/') ? strrchr(file, '/') + 1 : file);
 		snprintf(syslogbuf, sizeof(syslogbuf), "%s (%s:%d): %s", fnc, bname, line, msg);
+#ifdef DEBUG
 		openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
 		syslog(LOG_INFO, syslogbuf, strlen(syslogbuf));
 		closelog();
-	};
+#else
+		fprintf(stderr, "%s\n", syslogbuf);
 #endif
+	};
 }
 
 static __attribute__((constructor)) void debug_init()
