@@ -104,11 +104,11 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 		return;
 	}
 	if (!(
-	      (dhcp->dhcp_opcode == htons(LIBNET_DHCP_REPLY) && dhcp_mode == c_dhcp_ack)
-	   || (dhcp->dhcp_opcode == htons(LIBNET_DHCP_REQUEST) && dhcp_mode == c_dhcp_req)
+	      (dhcp->dhcp_opcode == LIBNET_DHCP_REPLY && dhcp_mode == c_dhcp_ack)
+	   || (dhcp->dhcp_opcode == LIBNET_DHCP_REQUEST && dhcp_mode == c_dhcp_req)
 	     )
 	  ) {
-		eprintf(DEBUG_DHCP, "dhcp no reply/request matching ports");
+		eprintf(DEBUG_DHCP, "dhcp no reply/request matching ports: opcode %x rep %x req %x", dhcp->dhcp_opcode, LIBNET_DHCP_REPLY, LIBNET_DHCP_REQUEST);
 		return;
 	}
 	if (dhcp->dhcp_htype != 0x01) {
@@ -125,7 +125,7 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	}
 	// fields
 	uint32_t leaseTime = 0; // no default when DHCP ACK generated in reply to DHCP INFORM
-	uint32_t tmp_yip = ntohl(dhcp->dhcp_yip);
+	uint32_t tmp_yip = dhcp->dhcp_yip;
 	struct in_addr yip;
 	memcpy(&yip, &tmp_yip, sizeof(yip));
 	uint8_t mac[ETH_ALEN]; memcpy(mac, dhcp->dhcp_chaddr, ETH_ALEN);
