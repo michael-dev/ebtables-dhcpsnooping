@@ -32,6 +32,7 @@
 #include <netlink/netfilter/log_msg.h>
 #include <netlink/route/neighbour.h>
 #include <netlink/route/link.h>
+#include <netlink/route/rtnl.h>
 #include <netlink/cache.h>
 #include <netlink/msg.h>
 #include <netinet/ip.h>
@@ -243,7 +244,7 @@ int event_input_route(struct nl_msg *msg, void *arg)
 {
         if (nl_msg_parse(msg, &obj_input_route, NULL) < 0)
 		eprintf(DEBUG_NEIGH,  "<<EVENT:Route>> Unknown message type");
-	return NL_STOP;
+	return NL_OK;
 }
 
 void bridge_receive(int s, void* ctx)
@@ -326,6 +327,27 @@ static __attribute__((constructor)) void bridge_init()
 	int rffd = nl_socket_get_fd(nf_sock_route);
 	cb_add_handle(rffd, nf_sock_route, bridge_receive);
 
+	/* connect to netlink route to get notified of all known bridge addresses */
+	nf_sock_route = nl_socket_alloc();
+	if (nf_sock_route < 0) {
+		eprintf(DEBUG_ERROR, "cannot alloc socket (II): %s", strerror(errno));
+		exit(254);
+	}
+	nl_socket_disable_seq_check(nf_sock_route);
+	nl_socket_modify_cb(nf_sock_route, NL_CB_VALID, NL_CB_CUSTOM, event_input_route, NULL);
+
+	if (nl_connect(nf_sock_route, NETLINK_ROUTE) < 0) {
+		eprintf(DEBUG_ERROR, "cannot connect II: %s", strerror(errno));
+		exit(254);
+	}
+
+        if (nl_rtgen_request(nf_sock_route, RTM_GETNEIGH, AF_BRIDGE, NLM_F_DUMP) < 0) {
+		eprintf(DEBUG_ERROR, "cannot request fdb dump: %s", strerror(errno));
+		exit(254);
+	}
+
+	rffd = nl_socket_get_fd(nf_sock_route);
+	cb_add_handle(rffd, nf_sock_route, bridge_receive);
 }
 
 #endif

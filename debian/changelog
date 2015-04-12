@@ -1,3 +1,9 @@
+dhcpsnoopingd-fem (0.1~20150412) unstable; urgency=low
+
+  * dump bridge fdb on startup
+
+ -- Michael Braun <michael-dev@fami-braun.de>  Sun, 12 Apr 2015 09:27:32 +0200
+
 dhcpsnoopingd-fem (0.1~20150333) unstable; urgency=low
 
   * roaming
