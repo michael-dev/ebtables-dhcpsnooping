@@ -1,3 +1,24 @@
+Summary
+-------
+
+This daemon ensures that users connected to your linux wifi access point or to
+your linux managed switch only use the ip address they have been assigned by
+your local dhcp server.
+
+To achieve this, it manages linux ebtables rules that accept packets that match
+ip address, mac address and interface with an active dhcp lease. It will also
+listen to dhcp requests and replies using ebtables, so you can filter which
+dhcp servers should be listened too. The latter is called nflog.
+
+When running on wifi access points, stations roaming between them will not
+renew their lease after each single roam. Instead, the target access point
+will have to learn the active lease from the originating access point. This
+currently is achieved by storing the leases in a central mysql/mariadb database
+and udp broadcast notifications. Detecting new (roaming) stations is based on
+linux bridge code and thus does not depend on wifi interfaces.
+
+Commercial switches usually name similar features ARPprotect or DHCPsnooping.
+
 General
 -------
 
