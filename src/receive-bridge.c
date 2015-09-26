@@ -153,13 +153,13 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 	if (link) {
 		linkifname = rtnl_link_get_name(link);
 		if (!linkifname) {
-			eprintf(DEBUG_ERROR, "missing link ifname: %s", strerror(errno));
+			eprintf(DEBUG_ERROR, "missing link ifname: ifidx=%d", ifidx);
 			goto out;
 		}
 
 		unsigned int bridgeidx = rtnl_link_get_master(link);
 		if (bridgeidx == 0) {
-			eprintf(DEBUG_ERROR, "missing bridge idx: %s", strerror(errno));
+			eprintf(DEBUG_ERROR, "missing bridge idx: link %s(%d) has no master", linkifname, ifidx);
 			goto out;
 		}
 
