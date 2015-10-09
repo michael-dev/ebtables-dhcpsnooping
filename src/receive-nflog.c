@@ -41,10 +41,13 @@ void obj_input_nflog(struct nl_object *obj, void *arg)
 	uint32_t  outdev = nfnl_log_msg_get_outdev(msg);
 
 	if (indev != outdev) {
-		eprintf(DEBUG_NFLOG,  "obj_input...err indev!=outdev");
+		eprintf(DEBUG_NFLOG,  "obj_input_nflog...err indev!=outdev");
 		return;
 	}
-	if_indextoname(indev, buf);
+	if (!if_indextoname(indev, buf)) {
+		eprintf(DEBUG_ERROR,  "obj_input_nlog: failed to fetch interface name of ifidx %d: %s (%d)", indev, strerror(errno), errno);
+		return;
+	}
 
 	uint16_t hwproto = ntohs(nfnl_log_msg_get_hwproto(msg));
 	int len = 0;
