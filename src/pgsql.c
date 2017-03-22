@@ -125,7 +125,7 @@ retry:
 
 	if ((err == PGRES_BAD_RESPONSE) || (err == PGRES_FATAL_ERROR)) {
 		PQclear(res); res = NULL;
- 		if ((PQstatus(pgsql) != CONNECTION_OK) &&
+		if ((PQstatus(pgsql) != CONNECTION_OK) &&
 		    ((retrycnt < 1000) || (time(NULL) < start + 10 /*10s*/))) {
 			eprintf(DEBUG_GENERAL,  "pgsql repeat query");
 			retrycnt++;
