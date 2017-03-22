@@ -76,6 +76,35 @@ AC_ARG_ENABLE(mysql, [  --enable-mysql          enable MySQL support], [
 	fi
 ])
 
+#check if we want pgsql
+AC_ARG_ENABLE(pgsql, [  --enable-pgsql          enable PostgreSQL support], [
+	if test "x$enableval" != "xno"; then
+		AC_DEFINE([__USE_PGSQL__], , [Enable pgsql support])
+
+        	# Get PgSQL library and include locations
+
+                PKG_CHECK_MODULES([PGSQL], [libpq])
+
+	        AC_ARG_WITH([pgsql-include-path],
+        	  [AS_HELP_STRING([--with-pgsql-include-path],
+	            [location of the PgSQL headers, defaults to pkg_config])],
+        	  [PGSQL_CFLAGS="-I$withval"],
+	          [])
+        	AC_SUBST([PGSQL_CFLAGS])
+        
+	        AC_ARG_WITH([pgsql-lib],
+        	  [AS_HELP_STRING([--with-pgsql-lib], [PgSQL libraries])],
+	          [PGSQL_LIBS="$withval"],
+        	  [])
+
+	        AC_ARG_WITH([pgsql-lib-path],
+        	  [AS_HELP_STRING([--with-pgsql-lib-path], [location of the PgSQL libraries])],
+	          [PGSQL_LIBS="-L$withval $PGSQL_LIBS"],
+        	  [])
+	        AC_SUBST([PGSQL_LIBS])
+	fi
+])
+
 # Checks for header files.
 AC_HEADER_STDC
 
