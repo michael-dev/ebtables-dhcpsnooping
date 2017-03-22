@@ -44,7 +44,7 @@ void obj_input_nflog(struct nl_object *obj, void *arg)
 		eprintf(DEBUG_NFLOG,  "obj_input_nflog...err indev!=outdev");
 		return;
 	}
-	memset(&buf,0,sizeof(buf));
+	memset(buf,0,sizeof(buf));
 	if (!if_indextoname(indev, buf)) {
 		eprintf(DEBUG_ERROR,  "obj_input_nlog: failed to fetch interface name of ifidx %d: %s (%d)", indev, strerror(errno), errno);
 		return;
