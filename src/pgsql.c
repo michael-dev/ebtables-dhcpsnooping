@@ -123,9 +123,10 @@ retry:
 	} else if (err == PGRES_NONFATAL_ERROR)
 		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "pgsql warning: %spgsql query %s\n\n", PQerrorMessage(pgsql), sql);
 
-	if ((err == PGRES_BAD_RESPONSE || err == PGRES_FATAL_ERROR) && (PQstatus(pgsql) != CONNECTION_OK)) {
+	if ((err == PGRES_BAD_RESPONSE) || (err == PGRES_FATAL_ERROR)) {
 		PQclear(res); res = NULL;
-		if ((retrycnt < 1000) || (time(NULL) < start + 10 /*10s*/)) {
+ 		if ((PQstatus(pgsql) != CONNECTION_OK) &&
+		    ((retrycnt < 1000) || (time(NULL) < start + 10 /*10s*/))) {
 			eprintf(DEBUG_GENERAL,  "pgsql repeat query");
 			retrycnt++;
 			goto retry;
