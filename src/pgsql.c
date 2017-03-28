@@ -88,7 +88,9 @@ int pgsql_connected()
 	}
 	setenv("PGSERVICEFILE", pgsql_config_file, 0);
 
-	pgsql = PQconnectdb("service = dhcpsnoopingd");
+	char dsnbuf[1024];
+	snprintf(dsnbuf, sizeof(dsnbuf), "service = %s", pgsql_config_name);
+	pgsql = PQconnectdb(dsnbuf);
 	if (PQstatus(pgsql) != CONNECTION_OK) {
 		eprintf(DEBUG_ERROR,  "pgsql error: %s", PQerrorMessage(pgsql));
 		return connected;
