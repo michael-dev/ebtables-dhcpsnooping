@@ -179,9 +179,9 @@ void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 
 	char sql[2048];
 	if (expiresAt > now) {
-		snprintf(sql, sizeof(sql), "INSERT INTO " PGSQLLEASETABLE " (bridge, mac, ip, validUntil) VALUES('%s', '%s', '%s', CURRENT_TIMESTAMP + interval '%d seconds') ON CONFLICT (bridge, mac, ip) DO UPDATE SET validUntil = CURRENT_TIMESTAMP + interval '%d seconds';", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), expiresAt - now, expiresAt - now);
+		snprintf(sql, sizeof(sql), "INSERT INTO " PGSQLLEASETABLE " (bridge, mac, ip, validUntil) VALUES(%s, '%s', '%s', CURRENT_TIMESTAMP + interval '%d seconds') ON CONFLICT (bridge, mac, ip) DO UPDATE SET validUntil = CURRENT_TIMESTAMP + interval '%d seconds';", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), expiresAt - now, expiresAt - now);
 	} else {
-		snprintf(sql, sizeof(sql), "UPDATE " PGSQLLEASETABLE " SET validUntil = CURRENT_TIMESTAMP WHERE bridge = '%s' AND mac = '%s';", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac));
+		snprintf(sql, sizeof(sql), "UPDATE " PGSQLLEASETABLE " SET validUntil = CURRENT_TIMESTAMP WHERE bridge = %s AND mac = '%s';", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac));
 	}
 	PQfreemem(sql_esc_bridge); sql_esc_bridge = NULL;
 	eprintf(DEBUG_GENERAL, "write sql: %s", sql);
@@ -198,7 +198,7 @@ int pgsql_update_lease_from_sql(const char* ifname, const uint8_t* mac, const st
 		return -1;
 	
 	sql_esc_bridge = PQescapeLiteral(pgsql, ifname, strlen(ifname));
-	snprintf(sql, sizeof(sql), "SELECT extract('epoch' from (MAX(validUntil) - CURRENT_TIMESTAMP))::varchar as expiresin FROM " PGSQLLEASETABLE " WHERE validUntil > CURRENT_TIMESTAMP AND bridge = '%s' AND mac = '%s' AND ip = '%s';", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip));
+	snprintf(sql, sizeof(sql), "SELECT extract('epoch' from (MAX(validUntil) - CURRENT_TIMESTAMP))::varchar as expiresin FROM " PGSQLLEASETABLE " WHERE validUntil > CURRENT_TIMESTAMP AND bridge = %s AND mac = '%s' AND ip = '%s';", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip));
 	PQfreemem(sql_esc_bridge); sql_esc_bridge = NULL;
 
 	res = pgsql_query_errprint_query(sql);
@@ -231,7 +231,7 @@ void pgsql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* m
 	eprintf(DEBUG_NEIGH, "query pgsql\n");
 
 	sql_esc_bridge = PQescapeLiteral(pgsql, ifname, strlen(ifname));
-	snprintf(sql, sizeof(sql), "SELECT ip::varchar as ip, extract('epoch' from MAX(validUntil) - CURRENT_TIMESTAMP)::varchar as expiresin FROM " PGSQLLEASETABLE " WHERE validUntil > CURRENT_TIMESTAMP AND bridge = '%s' AND mac = '%s' GROUP BY ip;", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac));
+	snprintf(sql, sizeof(sql), "SELECT ip::varchar as ip, extract('epoch' from MAX(validUntil) - CURRENT_TIMESTAMP)::varchar as expiresin FROM " PGSQLLEASETABLE " WHERE validUntil > CURRENT_TIMESTAMP AND bridge = %s AND mac = '%s' GROUP BY ip;", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac));
 	PQfreemem(sql_esc_bridge); sql_esc_bridge = NULL;
 
 	eprintf(DEBUG_NEIGH, "query: %s", sql);
