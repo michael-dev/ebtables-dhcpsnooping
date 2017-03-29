@@ -26,7 +26,6 @@
 #include "timer.h"
 
 #include <signal.h>
-#include <time.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -107,7 +106,7 @@ PGresult * pgsql_query_errprint_query(const char* sql)
 	PGresult *res;
 	ExecStatusType err;
 	int retrycnt = 0;
-	const time_t start = time(NULL);
+	const time_t start = reltime();
 
 retry:
 	if (!pgsql_connected()) {
@@ -125,7 +124,7 @@ retry:
 	if ((err == PGRES_BAD_RESPONSE) || (err == PGRES_FATAL_ERROR)) {
 		PQclear(res); res = NULL;
 		if ((PQstatus(pgsql) != CONNECTION_OK) &&
-		    ((retrycnt < 1000) || (time(NULL) < start + 10 /*10s*/))) {
+		    ((retrycnt < 1000) || (reltime() < start + 10 /*10s*/))) {
 			eprintf(DEBUG_GENERAL,  "pgsql repeat query");
 			retrycnt++;
 			goto retry;
@@ -170,7 +169,7 @@ void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 	
 	eprintf(DEBUG_VERBOSE, "sql: update lease: MAC: %s IP: %s VLAN: %s expiresAt: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, expiresAt);
 
-	const uint32_t now =time(NULL);
+	const uint32_t now = reltime();
 	char *sql_esc_bridge = PQescapeLiteral(pgsql, ifname, strlen(ifname));
 	if (!sql_esc_bridge) return;
 
@@ -211,7 +210,7 @@ int pgsql_update_lease_from_sql(const char* ifname, const uint8_t* mac, const st
 	}
 	if (col != -1) {
 		char *val = PQgetvalue(res, 0, col);
-		const int now = time(NULL);
+		const int now = reltime();
 		int expiresIn = atoi(val);
 		eprintf(DEBUG_VERBOSE, "sql: update lease from sql: MAC: %s IP: %s VLAN: %s expiresIn (old): %d expiresIn (new): %d raw: %s", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname, *expiresAt - now, expiresIn, val);
 		*expiresAt = expiresIn + now;
@@ -229,7 +228,7 @@ void pgsql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* m
 	PGresult * res;
 	char sql[1024];
 	char *sql_esc_bridge;
-	const uint32_t now = time(NULL);
+	const uint32_t now = reltime();
 	
 	if (!pgsql_connected())
 		return;

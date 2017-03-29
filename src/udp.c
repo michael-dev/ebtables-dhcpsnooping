@@ -25,6 +25,7 @@
 #include "event.h"
 #include "dhcp.h"
 #include "dhcp-ack.h"
+#include "timer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,7 +39,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <time.h>
 #include <unistd.h>
 
 #define NETWORKPORT 1000
@@ -60,7 +60,7 @@ void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname
 	if (reason != UPDATED_LEASE_FROM_DHCP)
 		return;
 
-	snprintf(msg, sizeof(msg), "%s\t%s\t%s\t%d\t%s", ifname, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), (int) (expiresAt - time(NULL)), myhostname);
+	snprintf(msg, sizeof(msg), "%s\t%s\t%s\t%d\t%s", ifname, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), (int) (expiresAt - reltime()), myhostname);
 
 	/* Create socket for sending/receiving datagrams */
 	if (!broadcastSock) {
@@ -129,7 +129,7 @@ void handle_udp_message(char* buf, int recvlen)
 	int timedelta = atoi(str_expire);
 	uint32_t expire = 0;
 	if (timedelta > 0)
-		expire = time(NULL) + timedelta;
+		expire = reltime() + timedelta;
 		
 	/* parse message */
 	if (if_nametoindex(ifname) == 0) {

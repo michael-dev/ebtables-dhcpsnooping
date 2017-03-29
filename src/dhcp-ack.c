@@ -31,7 +31,6 @@
 #include <assert.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <time.h>
 
 #include <net/if.h>
 #include <netinet/ether.h>
@@ -60,7 +59,7 @@ static struct cache_ack_entry* globalAckCache = NULL;
 void check_expired_ack(void *ctx);
 
 void update_ack_timeout(struct cache_ack_entry* entry) {
-       int now = time(NULL);
+       int now = reltime();
        int timeout = (entry->expiresAt < now) ? 0 : (entry->expiresAt - now);
 
        cb_del_timer(entry, check_expired_ack);
@@ -101,7 +100,7 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 void dhcp_update_ack(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	int modified = 0;
-	uint32_t now =time(NULL);
+	uint32_t now = reltime();
 	assert(yip); assert(mac); assert(ifname);
 	struct cache_ack_entry* entry = get_ack_entry(yip, mac, ifname);
 	if (entry != NULL) {
@@ -119,7 +118,7 @@ void dhcp_update_ack(const uint8_t* mac, const struct in_addr* yip, const char* 
 
 void check_expired_ack(void *ctx)
 {
-	uint32_t now =time(NULL);
+	uint32_t now = reltime();
 	uint32_t expiresAt;
 
 	if (ctx) {
@@ -176,7 +175,7 @@ next:
 
 void dump_ack(int s)
 {
-	uint32_t now = time(NULL);
+	uint32_t now = reltime();
 	struct cache_ack_entry* entry = globalAckCache;
 	while (entry != NULL) {
 		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "ack: MAC: %s IP: %s BRIDGE: %s expires in %d" , ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, (int) entry->expiresAt - (int) now);

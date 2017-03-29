@@ -24,6 +24,7 @@
 #include "dhcp.h"
 #include "dhcp-req.h"
 #include "dhcp-ack.h"
+#include "timer.h"
 
 #include <assert.h>
 #include <sys/types.h>
@@ -45,7 +46,6 @@
 #include <libnet.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 
 #define REQ_LIFETIME 300
 
@@ -198,12 +198,12 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 
 	/** update cache */
 	if (dhcpmsgtype == LIBNET_DHCP_MSGREQUEST) {
-		uint32_t expiresAt = time(NULL) + REQ_LIFETIME;
+		uint32_t expiresAt = reltime() + REQ_LIFETIME;
 		add_req_entry_if_not_found(mac, ifname, expiresAt);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGACK
 	           && is_local(mac, ifname)
 		  ) {
-		uint32_t now = time(NULL);
+		uint32_t now = reltime();
 		uint32_t expiresAt = now + leaseTime;
 		updated_lease(mac, &yip, ifname, expiresAt, UPDATED_LEASE_FROM_DHCP);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGACK) {

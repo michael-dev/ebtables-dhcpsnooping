@@ -41,7 +41,6 @@
 #include <libnet.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
 
 #include "fdb.h"
@@ -50,6 +49,7 @@
 #include "dhcp-ack.h"
 #include "event.h"
 #include "cmdline.h"
+#include "timer.h"
 
 #define ROAMIFPREFIX "wl"
 static int numRoamIfPrefix = 0;

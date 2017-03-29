@@ -26,7 +26,6 @@
 #include "timer.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
 #include <signal.h>
 #include <netinet/ether.h>
@@ -88,7 +87,7 @@ void add_req_entry_if_not_found(const uint8_t* mac, const char* ifname, const ui
 
 void check_expired_req(void *ctx)
 {
-	uint32_t now = time(NULL);
+	uint32_t now = reltime();
 	struct cache_req_entry* entry = globalReqCache;
 	struct cache_req_entry* prev = NULL;
 	while (entry != NULL) {
@@ -113,7 +112,7 @@ void check_expired_req(void *ctx)
 
 void dump_req(int s)
 {
-	uint32_t now = time(NULL);
+	uint32_t now = reltime();
 	struct cache_req_entry* entry = globalReqCache;
 	while (entry != NULL) {
 		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "req: MAC: %s BRIDGE: %s expires in %d" , ether_ntoa_z((struct ether_addr *)entry->mac), entry->bridge, (int) entry->expiresAt - (int) now);

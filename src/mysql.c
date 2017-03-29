@@ -26,7 +26,6 @@
 #include "timer.h"
 
 #include <signal.h>
-#include <time.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -92,7 +91,7 @@ int mysql_connected()
 int mysql_query_errprint(const char* sql) 
 {
 	int ret, err, retrycnt = 0;
-	const time_t start = time(NULL);
+	const time_t start = reltime();
 
 retry:
 	if (!mysql_connected()) {
@@ -114,7 +113,7 @@ retry:
 	    (err == ER_LOCK_WAIT_TIMEOUT)
 	   ) && (
 	     (retrycnt < 1000) ||
-	     (time(NULL) < start + 10 /*10s*/)
+	     (reltime() < start + 10 /*10s*/)
 	   )
 	   ) {
 		eprintf(DEBUG_GENERAL,  "mysql repeat query");
@@ -152,7 +151,7 @@ void mysql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 	
 	eprintf(DEBUG_VERBOSE, "sql: update lease: MAC: %s IP: %s VLAN: %s expiresAt: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, expiresAt);
 
-	const uint32_t now =time(NULL);
+	const uint32_t now = reltime();
 	char sql_esc_bridge[1024];
 	mysql_real_escape_string(&mysql, sql_esc_bridge, ifname, MIN(strlen(ifname), sizeof(sql_esc_bridge) / 2 - 1));
 	char sql[2048];
@@ -186,7 +185,7 @@ int mysql_update_lease_from_sql(const char* ifname, const uint8_t* mac, const st
 	/* MAX(validUntil) - UNIX_TIMESTAMP() == NULL wenn keine records gefunden werden -> row[0] == NULL */
 	row = mysql_fetch_row(result);
 	if (row && row[0]) {
-		*expiresAt = atoi(row[0]) + time(NULL);
+		*expiresAt = atoi(row[0]) + reltime();
 	} else {
 		*expiresAt = 0;
 	}
@@ -204,7 +203,7 @@ void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* m
 	/* query sql for lease and add local rules*/
 	char sql[1024];
 	char sql_esc_bridge[1024];
-	const uint32_t now = time(NULL);
+	const uint32_t now = reltime();
 	MYSQL_RES *result;
 	MYSQL_ROW row;
 	

@@ -57,7 +57,7 @@ void cb_add_timer(int timeout, int repeat, void* ctx, timer_cb cb)
 	entry->ctx = ctx;
 	entry->timeout = timeout;
 	entry->repeat = repeat;
-	entry->lastcalled = time(NULL);
+	entry->lastcalled = reltime();
 	entry->next = timer_cb_list;
 	timer_cb_list = entry;
 };
@@ -79,7 +79,7 @@ void timer(int s)
 	alarm (SLOT_INTERVAL);
 
 	struct timer_cb_list_entry* entry = NULL, *prev = NULL, *next = NULL;
-	int now = time(NULL);
+	int now = reltime();
 	timer_cb cb;
 	void *ctx = NULL;
 
@@ -118,6 +118,39 @@ void timer(int s)
 		/* call cb */
 		cb(ctx);
 	}
+}
+
+uint32_t reltime()
+{
+#if defined(CLOCK_BOOTTIME)
+        static clockid_t clock_id = CLOCK_BOOTTIME;
+#elif defined(CLOCK_MONOTONIC)
+        static clockid_t clock_id = CLOCK_MONOTONIC;
+#else
+        static clockid_t clock_id = CLOCK_REALTIME;
+#endif
+        struct timespec ts;
+        int res;
+
+        while (1) {
+                res = clock_gettime(clock_id, &ts);
+                if (res == 0)
+			return ts.tv_sec;
+                switch (clock_id) {
+#ifdef CLOCK_BOOTTIME
+                case CLOCK_BOOTTIME:
+                        clock_id = CLOCK_MONOTONIC;
+                        break;
+#endif
+#ifdef CLOCK_MONOTONIC
+                case CLOCK_MONOTONIC:
+                        clock_id = CLOCK_REALTIME;
+                        break;
+#endif
+                case CLOCK_REALTIME:
+                        return time(NULL);
+                }
+        }
 }
 
 static __attribute__((constructor)) void timer_init()

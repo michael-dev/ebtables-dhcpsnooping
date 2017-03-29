@@ -26,4 +26,5 @@ typedef void (*timer_cb) (void* ctx);
 
 void cb_add_timer(int timeout, int repeat, void* ctx, timer_cb cb);
 void cb_del_timer(void* ctx, timer_cb cb);
+uint32_t reltime();
 
