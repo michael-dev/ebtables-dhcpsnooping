@@ -63,12 +63,22 @@ Database support:
 -----------------
 
 In order for roaming to work when the source AP powers down, dhcpsnooping
-caches its leases in a central MySQL server (should be redundant). When
+caches its leases in a central SQL server (should be redundant). When
 such a database is configured, incoming UDP notifications get filtered by
 checking with the database list of leases.
 
-Hostname and credentials get configured using into client and dhcpsnooping group
-of /etc/mysql/[fembot,my].cnf.
+Hostname and credentials get configured using a configuration file.
+
+a) MySQL
+  For MySQL backend, use client and dhcpsnooping group of
+  /etc/mysql/fembot.cnf (configurable).
+  See https://dev.mysql.com/doc/refman/5.7/en/option-files.html for details.
+
+b) PostgreSQL >= 9.5
+  For PgSQL backend, use dhcpsnooping section in /etc/pgsql/fembot.cfg
+  (configurable).
+  See https://www.postgresql.org/docs/9.6/static/libpq-pgservice.html for
+  details.
 
 SIGALARM triggers clearing expires entries.
 SIGUSR1 triggers dumping cache tables.

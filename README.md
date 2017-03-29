@@ -112,7 +112,7 @@ Roaming support
 When used on multiple APs that share the ESSID, it looks to the daemon like an
 STA attaches locally and used an IP address without doing DHCP. To account for
 this, two means have been implemented:
-- store leases in a central MySQL/MariaDB (Cluster) Database
+- store leases in a central MySQL/MariaDB or PostgreSQL (Cluster) Database
 - track locally connected STAs
 - notify other instances about changes
 
@@ -166,6 +166,7 @@ Dependencies
 ------------
 
 - MySQL client headers (if needed)
+- libpq (PgSQL client) headers (if needed)
 - Kernel headers
 - libnl-3
 
