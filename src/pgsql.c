@@ -236,7 +236,7 @@ void pgsql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* m
 	eprintf(DEBUG_NEIGH, "query pgsql\n");
 
 	sql_esc_bridge = PQescapeLiteral(pgsql, ifname, strlen(ifname));
-	snprintf(sql, sizeof(sql), "SELECT ip::varchar as ip, extract('epoch' from validUntil - CURRENT_TIMESTAMP)::varchar as expiresin FROM " PGSQLLEASETABLE " WHERE validUntil > CURRENT_TIMESTAMP AND bridge = %s AND mac = '%s' GROUP BY ip;", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac));
+	snprintf(sql, sizeof(sql), "SELECT ip::varchar as ip, extract('epoch' from MAX(validUntil) - CURRENT_TIMESTAMP)::varchar as expiresin FROM " PGSQLLEASETABLE " WHERE validUntil > CURRENT_TIMESTAMP AND bridge = %s AND mac = '%s' GROUP BY ip;", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac));
 	PQfreemem(sql_esc_bridge); sql_esc_bridge = NULL;
 
 	eprintf(DEBUG_NEIGH, "query: %s", sql);
