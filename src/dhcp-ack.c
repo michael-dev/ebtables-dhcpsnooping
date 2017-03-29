@@ -61,7 +61,7 @@ void check_expired_ack(void *ctx);
 
 void update_ack_timeout(struct cache_ack_entry* entry) {
        int now = time(NULL);
-       int timeout = (entry->expiresAt < now) ? 0 : (entry->expiresAt - time(NULL));
+       int timeout = (entry->expiresAt < now) ? 0 : (entry->expiresAt - now);
 
        cb_del_timer(entry, check_expired_ack);
        cb_add_timer(timeout + 1, 0, entry, check_expired_ack);
