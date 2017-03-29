@@ -294,9 +294,9 @@ static __attribute__((constructor)) void dhcp_pgsql_init()
 
 	{
 		int version = PQlibVersion();
-		int v1 = version / 1000;
-		int v2 = (version / 10) % 100;
-		int v3 = version % 10;
+		int v1 = version / 10000;
+		int v2 = (version / 100) % 100;
+		int v3 = version % 100;
 		eprintf(DEBUG_ERROR,  "PgSQL client version: %d.%d.%d", v1, v2, v3);
 	}
 
