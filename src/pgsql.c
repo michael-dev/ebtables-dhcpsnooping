@@ -216,7 +216,7 @@ int pgsql_update_lease_from_sql(const char* ifname, const uint8_t* mac, const st
 		char *val = PQgetvalue(res, 0, col);
 		const int now = time(NULL);
 		int expiresIn = atoi(val);
-		eprintf(DEBUG_VERBOSE, "sql: update lease from sql: MAC: %s IP: %s VLAN: %s expiresIn (old): %d expiresIn (new): %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname, *expiresAt - now, expiresIn);
+		eprintf(DEBUG_VERBOSE, "sql: update lease from sql: MAC: %s IP: %s VLAN: %s expiresIn (old): %d expiresIn (new): %d raw: %s", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname, *expiresAt - now, expiresIn, val);
 		*expiresAt = expiresIn + now;
 	} else {
 		*expiresAt = 0;
