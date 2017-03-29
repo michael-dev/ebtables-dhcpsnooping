@@ -167,9 +167,9 @@ void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 	if (!pgsql_connected())
 		return;
 	
-	eprintf(DEBUG_VERBOSE, "sql: update lease: MAC: %s IP: %s VLAN: %s expiresAt: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, expiresAt);
-
 	const uint32_t now = reltime();
+	eprintf(DEBUG_VERBOSE, "sql: update lease: MAC: %s IP: %s VLAN: %s expiresIn: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, expiresAt - now);
+
 	char *sql_esc_bridge = PQescapeLiteral(pgsql, ifname, strlen(ifname));
 	if (!sql_esc_bridge) return;
 

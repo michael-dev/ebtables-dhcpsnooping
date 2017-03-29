@@ -149,7 +149,7 @@ void handle_udp_message(char* buf, int recvlen)
 	}
 
 	/* add lease */
-	eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: updating lease MAC: %s IP: %s VLAN: %s expiresAt:%d (from: %s)", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, expire, str_hostname);
+	eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: updating lease MAC: %s IP: %s VLAN: %s expiresIn:%d (from: %s)", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, timedelta, str_hostname);
 	updated_lease(mac, &yip, ifname, expire, UPDATED_LEASE_FROM_EXTERNAL);
 }
 
