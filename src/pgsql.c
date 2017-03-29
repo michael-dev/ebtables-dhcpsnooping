@@ -206,10 +206,18 @@ int pgsql_update_lease_from_sql(const char* ifname, const uint8_t* mac, const st
 		return -1;
 
 	/* pgsql query sucessfull */
+	int col = -1;
 	if (PQntuples(res) > 0) {
-		int col = PQfnumber(res, "expiresin");
+		col = PQfnumber(res, "expiresin");
+		if (col == -1)
+			eprintf(DEBUG_ERROR, "sql: update lease from sql did not find column expiresin");
+	}
+	if (col != -1) {
 		char *val = PQgetvalue(res, 0, col);
-		*expiresAt = atoi(val) + time(NULL);
+		const int now = time(NULL);
+		int expiresIn = atoi(val);
+		eprintf(DEBUG_VERBOSE, "sql: update lease from sql: MAC: %s IP: %s VLAN: %s expiresIn (old): %d expiresIn (new): %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname, *expiresAt - now, expiresIn);
+		*expiresAt = expiresIn + now;
 	} else {
 		*expiresAt = 0;
 	}
