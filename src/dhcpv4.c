@@ -28,8 +28,6 @@
 
 #include <assert.h>
 #include <sys/types.h>
-/* sys/types.h in OpenWRT/lede does not include sys/select.h */
-#include <sys/select.h>
 #include <net/if.h>
 #define _LINUX_IF_H
 #include <linux/netfilter/nfnetlink_log.h>

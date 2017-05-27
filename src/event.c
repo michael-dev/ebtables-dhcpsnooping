@@ -27,6 +27,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <assert.h>
+#include <sys/select.h>
 
 struct packet_cb_list_entry {
 	packet_cb cb;
