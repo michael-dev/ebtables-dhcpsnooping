@@ -36,9 +36,15 @@
 #include <netinet/ether.h>
 #include "ether_ntoa.h"
 
+#ifndef PGSQLLEASETABLE
 #define PGSQLLEASETABLE "leases"
+#endif
+#ifndef PGSQLSERVICE
 #define PGSQLSERVICE "/etc/pgsql/fembot.cnf"
+#endif
+#ifndef PGSQLSERVICENAME
 #define PGSQLSERVICENAME "dhcpsnooping"
+#endif
 
 PGconn *pgsql = NULL;
 static char* pgsql_config_file = PGSQLSERVICE;

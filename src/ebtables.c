@@ -31,8 +31,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifndef CHAINNAME
 #define CHAINNAME "dhcpsnooping"
+#endif
+#ifndef EBTABLES
 #define EBTABLES "ebtables"
+#endif
 
 void ebtables_run(const char* cmd) {
 	eprintf(DEBUG_GENERAL, "run \"%s\"", cmd);
