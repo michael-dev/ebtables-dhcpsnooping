@@ -26,6 +26,7 @@
 #include "dhcp.h"
 #include "dhcp-ack.h"
 #include "timer.h"
+#include "cmdline.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,14 +42,109 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#ifndef NETWORKPORT
 #define NETWORKPORT 1000
+#endif
+#ifndef NETWORKADDR
 #define NETWORKADDR "10.30.0.0"
+#endif
+#ifndef NETWORKMASK
 #define NETWORKMASK "255.255.0.0"
+#endif
 
 static struct in_addr broadcastAddr;
 static struct in_addr networkAddr;
 static struct in_addr networkMask;
+static uint16_t networkPort;
 static char myhostname[1024];
+
+void set_broadcast_port(int c)
+{
+	unsigned long buf;
+	char *end = NULL;
+	char *emsg = "Bad broadcast port on CLI. Using default (%i)";
+
+	networkPort = NETWORKPORT;
+	/* Use only hex or decimal.  No minuses. */
+	if (!optarg || optarg[0] > '9' || optarg[0] < '0'
+		    || (optarg[0] == '0' && optarg[1] && optarg[1] != 'x')) {
+		eprintf(DEBUG_ERROR, emsg, networkPort);
+		return;
+	}
+	if (optarg[0] == '0' && optarg[1] == 'x') {
+		buf = strtoul(optarg, &end, 16);
+	}
+	else {
+		buf = strtoul(optarg, &end, 10);
+	}
+	/* No trailing text.  No modulus wrapping. */
+	if (!*end && buf <= 0xffff) {
+		networkPort = (uint16_t)buf;
+	}
+	else {
+		eprintf(DEBUG_ERROR, emsg, networkPort);
+	}
+}
+
+void set_broadcast_addr(int c)
+{
+	char buf[16];
+	int rc;
+	uint32_t h;
+	char *end = NULL;
+	char *emsg = "Bad broadcast address on CLI. Using default (%s/%s)";
+
+	buf[15] = '\0';
+	strncpy(buf, optarg, 15);
+	if (strchr(buf, '/')) {
+		*(strchr(buf, '/')) = '\0';
+	}
+	rc = inet_pton(AF_INET, buf, &networkAddr);
+	if (optarg[strlen(buf)] != '/') {
+		rc = -1;
+	}
+	else {
+		strncpy(buf, optarg + strlen(buf) + 1, 15);
+		if (strchr(buf, '.')) {
+			rc |= inet_pton(AF_INET, buf, &networkMask);
+		}
+		/* else CIDR.  Use only decimal.  No minuses. */
+		else if (buf[0] > '9' || buf[0] < '0') {
+			rc = -1;
+		}
+		else {
+			h = strtoul(buf, &end, 10);
+			/* No trailing text.  Bounds check. */
+			if (!*end && h <= 32) {
+				h = 0xffffffff << (32 - h);
+				networkMask.s_addr = htonl(h);
+			}
+			else {
+				rc = -1;
+			}
+		}
+	}
+	/* Ensure the mask is netmask */
+	h = ntohl(networkMask.s_addr);
+	h |= h << 1;
+	if (rc != 1 || h != ntohl(networkMask.s_addr)) {
+		eprintf(DEBUG_ERROR, emsg, NETWORKADDR, NETWORKMASK);
+		inet_pton(AF_INET, NETWORKADDR, &networkAddr);
+		inet_pton(AF_INET, NETWORKMASK, &networkMask);
+	}
+
+	broadcastAddr.s_addr = networkAddr.s_addr | (~networkMask.s_addr);
+	networkAddr.s_addr = networkAddr.s_addr & networkMask.s_addr;
+
+	if (inet_ntop(AF_INET, &broadcastAddr, buf, 16)) {
+		eprintf(DEBUG_UDP, "Broadcasting leases to %s", buf);
+	}
+	if (inet_ntop(AF_INET, &networkAddr, buf, 16)) {
+		h = ntohl(networkMask.s_addr);
+		for(rc = 0; h; h <<= 1) { rc++; };
+		eprintf(DEBUG_UDP, "Accepting broadcasts from %s/%i", buf, rc);
+	}
+}
 
 void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
@@ -84,7 +180,7 @@ void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname
 	memset(&sbroadcastAddr, 0, sizeof(sbroadcastAddr));
 	sbroadcastAddr.sin_family = AF_INET;				 /* Internet address family */
 	sbroadcastAddr.sin_addr.s_addr = broadcastAddr.s_addr;   /* Broadcast IP address */
-	sbroadcastAddr.sin_port = htons(NETWORKPORT);	   /* Broadcast port */
+	sbroadcastAddr.sin_port = htons(networkPort);	   /* Broadcast port */
 
 	/* send message */
 	if(sendto(broadcastSock, msg, strlen(msg), 0, (struct sockaddr *)&sbroadcastAddr, sizeof(sbroadcastAddr)) < 0)
@@ -130,7 +226,7 @@ void handle_udp_message(char* buf, int recvlen)
 	uint32_t expire = 0;
 	if (timedelta > 0)
 		expire = reltime() + timedelta;
-		
+
 	/* parse message */
 	if (if_nametoindex(ifname) == 0) {
 		eprintf(DEBUG_UDP,  "Interface %s unknown: %s (%d)", ifname, strerror(errno), errno);
@@ -178,13 +274,13 @@ void udp_receive(int udpsocket, void* ctx)
 
 static __attribute__((constructor)) void udp_init()
 {
+        static struct option bcport_option = {"broadcast-port", required_argument, 0, 3};
+        static struct option bcaddr_option = {"broadcast-addr", required_argument, 0, 3};
+        add_option_cb(bcport_option, set_broadcast_port);
+        add_option_cb(bcaddr_option, set_broadcast_addr);
+
 	gethostname(myhostname, sizeof(myhostname));
 	myhostname[sizeof(myhostname)-1]='\0';
-
-	inet_aton(NETWORKADDR, &networkAddr);
-	inet_aton(NETWORKMASK, &networkMask);
-	broadcastAddr.s_addr = networkAddr.s_addr | (~networkMask.s_addr);
-	networkAddr.s_addr = networkAddr.s_addr & networkMask.s_addr;
 
 	eprintf(DEBUG_ERROR,  "Listen to broadcasts for dhcp notifications");
 	int udpsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -205,7 +301,7 @@ static __attribute__((constructor)) void udp_init()
 	memset(&my_addr, 0, sizeof(my_addr));
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_addr.s_addr = INADDR_ANY;
-	my_addr.sin_port = htons(NETWORKPORT);
+	my_addr.sin_port = htons(networkPort);
 
 	if (bind(udpsocket, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) < 0) {
 		eprintf(DEBUG_ERROR, "bind udp: %s", strerror(errno));
