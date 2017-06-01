@@ -3,67 +3,67 @@ ebtables-dhcpsnooping
 
 This daemon ensures that users connected to your linux wifi access point or to
 your linux managed switch only use the ip address they have been assigned by
-your local dhcp server.
+your local DHCP server.
 
 To achieve this, it manages linux ebtables rules that accept packets that match
-ip address, mac address and interface with an active dhcp lease. It will also
-listen to dhcp requests and replies using ebtables, so you can filter which
-dhcp servers should be listened too. The latter is called nflog.
+ip address, mac address and interface with an active DHCP lease. It will also
+listen to DHCP requests and replies using ebtables, so you can filter which
+DHCP servers should be listened too. The latter is called nflog.
 
 When running on wifi access points, stations roaming between them will not
 renew their lease after each single roam. Instead, the target access point
 will have to learn the active lease from the originating access point. This
-currently is achieved by storing the leases in a central mysql/mariadb database
-and udp broadcast notifications. Detecting new (roaming) stations is based on
-linux bridge code and thus does not depend on wifi interfaces.
+currently is achieved by storing the leases in a central database and
+through udp broadcast notifications. Detecting new (roaming) stations is based
+on linux bridge code and thus does not depend on wifi interfaces.
 
 Commercial switches usually name similar features ARPprotect or DHCPsnooping.
 
 Description
 ===========
 
-Linux generic dhcp snooping daemon using nflog and ebtables.
+Linux generic DHCP snooping daemon using nflog and ebtables.
 
-This daemon parses dhcp ack messages and inserts ebtables ACCEPT rules for
+This daemon parses DHCP ack messages and inserts ebtables ACCEPT rules for
 packets matching source IPv4 address + source MAC into the dhcpsnooping chain.
 These rules get removed once the lease times out. In order to filter for
-broadcast acks, dhcp requests are used to filter those acks so that only local
+broadcast acks, DHCP requests are used to filter those acks so that only local
 stations get inserted. The packets are fed into the daemon using netfilter log
 (nflog), the default group id is 1.
 
 To use this daemon, you'll need to have
   - NETFILTER\_LOG support in the kernel
-  - an ebtables rule copying all dhcp request from local stations (i.e. on
+  - an ebtables rule copying all DHCP request from local stations (i.e. on
     wlan+) to the daemon using the nflog matcher.
-  - an ebtables rule copying all dhcp acks from the *authoritative* dhcp
+  - an ebtables rule copying all DHCP acks from the *authoritative* DHCP
     servers (i.e. from ! wlan+) to the daemon using the nflog matcher.
   - an ebtables rule filtering all IPv4 and ARP incoming traffic by
     forwaring it to the dhcpsnooping chain, which drops packets by default.
 
-To actually provide protection you neet to ensure that no faked dhcp acks
+To actually provide protection you need to ensure that no faked DHCP acks
 are copied into the daemon and that all illegal traffic actually gets dropped.
-You should also ensure that the mac address cannot be spoofed to prevent faked
-dhcp acks and deny of service attacks.
+You should also ensure that the MAC address cannot be spoofed to prevent faked
+DHCP acks and denial of service attacks.
 
-SIGALARM is used internally for clearing expires entries.
+SIGALARM is used internally for clearing expired entries.
 SIGUSR1 triggers dumping cache tables.
 
 ARP rewrite support
 -------------------
 
-Additionally, ebtables rules are generated to rewrite multicast arp requests to
-unicast arp requests if the destination mac is known by dhcpsnoopingd for a
-local authenticated station.
+Additionally, ebtables rules are generated to rewrite multicast ARP requests to
+unicast ARP requests if the destination MAC is known by dhcpsnoopingd for a
+locally authenticated station.
 
-This can be used to reduce multicast traffic and drop multicast arp requests
-not rewritten.
+This can be used to reduce multicast traffic and drop multicast ARP requests
+which were not rewritten.
 
 Use case
 ========
 
-On AccessPoints running Linux and bridging or routing local clients that want to prevent users from using IP addresses not assigned using DHCP to them.
+On access points running Linux and bridging or routing local clients that want to prevent users from using IP addresses not assigned to them by DHCP.
 
-On Switches running Linux and aiming at providing arp-protection to the clients by preventing clients from using IP addresses not assigned using DHCP to them.
+On switches running Linux and aiming at providing arp-protection to the clients by preventing clients from using IP addresses not assigned to them by DHCP.
 
 Example ebtables rules (IPv4 only) for APs
 -------------------------------------------
@@ -94,27 +94,27 @@ ebtables -N dhcpsnooping -P DROP
 ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE --proto ipv4 -j dhcpsnooping
 ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE --proto arp -j dhcpsnooping
 
-ebtables -A dhcpsnooping --proto ipv4 --proto ipv4 --ip-src-address 0.0.0.0 -j RETURN
-ebtables -A dhcpsnooping --proto arp --proto arp --arp-src-address 0.0.0.0 -j RETURN
+ebtables -A dhcpsnooping --proto ipv4 --ip-src 0.0.0.0 -j RETURN
+ebtables -A dhcpsnooping --proto arp --arp-ip-src 0.0.0.0 -j RETURN
 
 # send DHCPv4 packets to dhcpsnoopingd and drop invalid DHCP packets
 ebtables -A FORWARD -i $WLAN --logical-in $BRIDGE \
-         --proto ipv4 --ip-protocol UDP --ip-source-port 68 --ip-destination-port 67 --nflog-group 1 -j ACCEPT
+         --proto ipv4 --ip-protocol udp --ip-source-port 68 --ip-destination-port 67 --nflog-group 1 -j ACCEPT
 ebtables -A FORWARD -s $DHCPMAC --logical-in $BRIDGE \
-         --proto ipv4 --ip-protocol UDP --ip-source-port 67 --ip-destination-port 68 --nflog-group 1 -j ACCEPT
+         --proto ipv4 --ip-protocol udp --ip-source-port 67 --ip-destination-port 68 --nflog-group 1 -j ACCEPT
 ebtables -A FORWARD --logical-in $BRIDGE \
-         --proto ipv4 --ip-protocol UDP --ip-source-port 67 --ip-destination-port 68 -j DROP
+         --proto ipv4 --ip-protocol udp --ip-source-port 67 --ip-destination-port 68 -j DROP
 ```
 
 Roaming support
 ===============
 
-When used on multiple APs that share the ESSID, it looks to the daemon like an
-STA attaches locally and used an IP address without doing DHCP. To account for
-this, two means have been implemented:
+When used on multiple APs that share the same ESSID, it looks to the daemon
+like an STA attaches locally and used an IP address without doing DHCP. To
+account for this, three mechanisms have been implemented:
 - store leases in a central MySQL/MariaDB or PostgreSQL (Cluster) Database
 - track locally connected STAs
-- notify other instances about changes
+- notify other APs about changes
 
 Central Database
 ----------------
@@ -126,24 +126,21 @@ the now roaming STAs.
 Tracking locally connected STAs
 --------------------------------
 
-In order to know for which STAs ebtables rules shall be installed, the daemon
-tracks the locally connected STAs. For more generic use, this is done using the
-kernel bridge code. Currently, this needs some simple kernel patching, as
-mostly STAs will just switch between the bridge ports "wlan+" and "uplink+".
-See patch/ for details.
-
-Update 2014-09-25: c65c7a306 introduced a sufficent change for this into
-                   upstream kernel. It is in 3.17-rc6 and 3.16.3 but not
-		   3.14.19 at least.
+In order to know the STAs for which to install ebtables rules, the daemon
+tracks the locally connected STAs.  To cover both wired and wifi use cases,
+this is done using the kernel bridge/netlink code.  For kernels older than
+3.17-rc6, this requires some simple kernel patching, as mostly STAs will
+just switch between the bridge ports "wlan+" and "uplink+".  See patch/ for
+details.
 
 Notification to other instances
 -------------------------------
 
 When roaming around, STAs can get marked as connected to multiple APs
-simultaneously - depending on the bridge mac cache. To ensure that dhcp
+simultaneously - depending on the bridge MAC cache. To ensure that DHCP
 lease changes (i.e. new IPs or renewed/released leases) get applied on
-all APs, the daemon sends UDP broadcast packets on the management backbone.
-Whenever the STA mac contained in the packet belongs to a locally connected
+all APs, the daemon sends UDP broadcast packets on the control plane.
+Whenever the STA MAC contained in the packet belongs to a locally connected
 STA, the ebtables rules get updated.
 
 Configuring Roaming and DB access
@@ -173,4 +170,4 @@ Dependencies
 TODO
 ----
 
-- Currently there is no IPv6 support, that is support for RouterAdvertisments and DHCPv6
+- Currently there is no IPv6 support, that is support for RA, ND, and DHCPv6
