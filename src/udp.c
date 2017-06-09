@@ -64,7 +64,6 @@ void set_broadcast_port(int c)
 	char *end = NULL;
 	char *emsg = "Bad broadcast port on CLI. Using default (%i)";
 
-	networkPort = NETWORKPORT;
 	/* Use only hex or decimal.  No minuses. */
 	if (!optarg || optarg[0] > '9' || optarg[0] < '0'
 		    || (optarg[0] == '0' && optarg[1] && optarg[1] != 'x')) {
@@ -278,6 +277,12 @@ static __attribute__((constructor)) void udp_init()
         static struct option bcaddr_option = {"broadcast-addr", required_argument, 0, 3};
         add_option_cb(bcport_option, set_broadcast_port);
         add_option_cb(bcaddr_option, set_broadcast_addr);
+
+	networkPort = NETWORKPORT;
+	inet_pton(AF_INET, NETWORKADDR, &networkAddr);
+	inet_pton(AF_INET, NETWORKMASK, &networkMask);
+	broadcastAddr = networkAddr;
+	broadcastAddr.s_addr |= ~networkMask.s_addr;
 
 	gethostname(myhostname, sizeof(myhostname));
 	myhostname[sizeof(myhostname)-1]='\0';
