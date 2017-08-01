@@ -192,7 +192,7 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGRELEASE) {
 		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REL MAC: %s BRIDGE: %s" , ether_ntoa_z((struct ether_addr *)mac), ifname);
 	} else {
-		eprintf(DEBUG_DHCP,  "ERROR - dhcp_mode is invalud");
+		eprintf(DEBUG_DHCP,  "ERROR - dhcp_mode is invalid");
 		return;
 	}
 
