@@ -115,7 +115,8 @@ void set_broadcast_addr(int c)
 			h = strtoul(buf, &end, 10);
 			/* No trailing text.  Bounds check. */
 			if (!*end && h <= 32) {
-				h = 0xffffffff << (32 - h);
+				/* << width of type is undefined behaviour */
+				h = h ? ( 0xffffffff << (32 - h) ) : 0x00000000;
 				networkMask.s_addr = htonl(h);
 			}
 			else {
