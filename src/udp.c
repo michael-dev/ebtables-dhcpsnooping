@@ -316,7 +316,7 @@ static __attribute__((constructor)) void udp_init()
 
 	gethostname(myhostname, sizeof(myhostname));
 	myhostname[sizeof(myhostname)-1]='\0';
-	
+
 	cb_add_timer(0, 0, NULL, udp_start_listen);
 	add_updated_lease_hook(sendLease,3);
 }
