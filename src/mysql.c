@@ -38,10 +38,18 @@
 #include <netinet/ether.h>
 #include "ether_ntoa.h"
 
+#ifndef MYCNF
 #define MYCNF "/etc/mysql/fembot.cnf"
+#endif
+#ifndef MYSQLDB
 #define MYSQLDB "dhcpsnooping"
+#endif
+#ifndef MYSQLLEASETABLE
 #define MYSQLLEASETABLE "leases"
+#endif
+#ifndef MYSQLGROUP
 #define MYSQLGROUP "dhcpsnooping"
+#endif
 
 MYSQL mysql;
 static char* mysql_config_file = MYCNF;
