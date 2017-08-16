@@ -271,28 +271,6 @@ void udp_receive(int udpsocket, void* ctx)
 	handle_udp_message(buf, recvlen);
 }
 
-void udp_start_listen(void *ctx);
-
-static __attribute__((constructor)) void udp_init()
-{
-        static struct option bcport_option = {"broadcast-port", required_argument, 0, 3};
-        static struct option bcaddr_option = {"broadcast-addr", required_argument, 0, 3};
-        add_option_cb(bcport_option, set_broadcast_port);
-        add_option_cb(bcaddr_option, set_broadcast_addr);
-
-	networkPort = NETWORKPORT;
-	inet_pton(AF_INET, NETWORKADDR, &networkAddr);
-	inet_pton(AF_INET, NETWORKMASK, &networkMask);
-	broadcastAddr = networkAddr;
-	broadcastAddr.s_addr |= ~networkMask.s_addr;
-
-	gethostname(myhostname, sizeof(myhostname));
-	myhostname[sizeof(myhostname)-1]='\0';
-	
-	cb_add_timer(0, 0, NULL, udp_start_listen);
-	add_updated_lease_hook(sendLease,3);
-}
-
 void udp_start_listen(void *ctx) {
 	eprintf(DEBUG_ERROR,  "Listen to broadcasts for dhcp notifications");
 	int udpsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -321,6 +299,26 @@ void udp_start_listen(void *ctx) {
 	}
 
 	cb_add_handle(udpsocket, NULL, udp_receive);
+}
+
+static __attribute__((constructor)) void udp_init()
+{
+        static struct option bcport_option = {"broadcast-port", required_argument, 0, 3};
+        static struct option bcaddr_option = {"broadcast-addr", required_argument, 0, 3};
+        add_option_cb(bcport_option, set_broadcast_port);
+        add_option_cb(bcaddr_option, set_broadcast_addr);
+
+	networkPort = NETWORKPORT;
+	inet_pton(AF_INET, NETWORKADDR, &networkAddr);
+	inet_pton(AF_INET, NETWORKMASK, &networkMask);
+	broadcastAddr = networkAddr;
+	broadcastAddr.s_addr |= ~networkMask.s_addr;
+
+	gethostname(myhostname, sizeof(myhostname));
+	myhostname[sizeof(myhostname)-1]='\0';
+	
+	cb_add_timer(0, 0, NULL, udp_start_listen);
+	add_updated_lease_hook(sendLease,3);
 }
 
 #endif
