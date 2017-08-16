@@ -272,7 +272,7 @@ void udp_receive(int udpsocket, void* ctx)
 }
 
 void udp_start_listen(void *ctx) {
-	eprintf(DEBUG_ERROR,  "Listen to broadcasts for dhcp notifications");
+	eprintf(DEBUG_ERROR,  "Listen to broadcasts for dhcp notifications on port %d", networkPort);
 	int udpsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (udpsocket < 0) {
 		eprintf(DEBUG_ERROR, "udp socket: %s", strerror(errno));
