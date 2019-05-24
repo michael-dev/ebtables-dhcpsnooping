@@ -38,7 +38,7 @@ To use this daemon, you'll need to have
   - an ebtables rule copying all DHCP acks from the *authoritative* DHCP
     servers (i.e. from ! wlan+) to the daemon using the nflog matcher.
   - an ebtables rule filtering all IPv4 and ARP incoming traffic by
-    forwaring it to the dhcpsnooping chain, which drops packets by default.
+    forwarding it to the dhcpsnooping chain, which drops packets by default.
 
 To actually provide protection you need to ensure that no faked DHCP acks
 are copied into the daemon and that all illegal traffic actually gets dropped.
