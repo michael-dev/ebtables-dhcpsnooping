@@ -150,7 +150,7 @@ void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname
 {
 	static int broadcastSock = 0;
 	struct sockaddr_in sbroadcastAddr; /* Broadcast address */
-	char msg[1024];
+	char msg[2048];
 
 	/* only write DHCP ACK packet changes back */
 	if (reason != UPDATED_LEASE_FROM_DHCP)
@@ -253,7 +253,7 @@ void udp_receive(int udpsocket, void* ctx)
 {
 	struct sockaddr_in their_addr;
 	socklen_t addr_len = sizeof(struct sockaddr);
-	char buf[1024]; memset(&buf, 0, sizeof(buf));
+	char buf[2048]; memset(&buf, 0, sizeof(buf));
 
 	int recvlen = recvfrom(udpsocket, buf, sizeof(buf)-1 , MSG_DONTWAIT, (struct sockaddr*) &their_addr, &addr_len);
 		if (recvlen < 0) {

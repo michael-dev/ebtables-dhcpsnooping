@@ -143,7 +143,7 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 
 	if (get_link_by_idx(ifidx, &link)) {
 		if (type == RTM_NEWNEIGH) {
-			eprintf(DEBUG_ERROR, "failed to fetch link %d from kernel for NEWNEIGH messages, aborting", ifidx);
+			eprintf(DEBUG_ERROR, "failed to fetch link when handling %s, lladdr = %s, family=AF_BRIDGE ifidx=%d", (type == RTM_NEWNEIGH ? "NEWNEIGH" : "DELNEIGH" ), lladdr, ifidx);
 			goto out;
 		}
 		/* RTM_DELNEIGH also works without interface resolution */
