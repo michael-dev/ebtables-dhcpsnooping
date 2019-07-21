@@ -97,6 +97,9 @@ int get_link_by_idx(int ifidx, struct rtnl_link **link)
 {
 	*link = NULL;
 
+	if (ifidx <= 0)
+		return 1;
+
 	static struct nl_sock *sock = NULL;
 	if (!sock) {
 		sock = nl_socket_alloc();
