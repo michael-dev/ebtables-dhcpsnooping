@@ -224,7 +224,9 @@ out:
 
 void obj_input_route(struct nl_object *obj, void *arg)
 {
-//	eprintf(DEBUG_NEIGH,  "obj_input_route...");
+	char buf[4096];
+	nl_object_dump_buf(obj, buf, sizeof(buf));
+	eprintf(DEBUG_NEIGH,  "received %s", buf);
 
 	int type = nl_object_get_msgtype(obj);
 	switch (type) {
@@ -245,6 +247,16 @@ void obj_input_route(struct nl_object *obj, void *arg)
 
 int event_input_route(struct nl_msg *msg, void *arg)
 {
+	char buf[4096] = {0};
+	FILE *ofd;
+
+	ofd = fmemopen(buf, sizeof(buf), "w");
+	if (ofd) {
+		nl_msg_dump(msg, ofd);
+		fclose(ofd);
+		eprintf(DEBUG_NEIGH,  "received message: %s", buf);
+	}
+
         if (nl_msg_parse(msg, &obj_input_route, NULL) < 0)
 		eprintf(DEBUG_NEIGH,  "<<EVENT:Route>> Unknown message type");
 	return NL_OK;

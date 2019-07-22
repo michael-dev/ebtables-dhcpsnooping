@@ -28,5 +28,5 @@
 #define DEBUG_ALL     255
 
 void edprint(const int level, const char* msg, const char* file, const int line, const char* fnc);
-#define eprintf(level, ...) { char syslogbuf[4096]; snprintf(syslogbuf, sizeof(syslogbuf), __VA_ARGS__); edprint(level, syslogbuf, __FILE__, __LINE__, __PRETTY_FUNCTION__); };
+#define eprintf(level, ...) { char syslogbuf[8192]; snprintf(syslogbuf, sizeof(syslogbuf), __VA_ARGS__); edprint(level, syslogbuf, __FILE__, __LINE__, __PRETTY_FUNCTION__); };
 
