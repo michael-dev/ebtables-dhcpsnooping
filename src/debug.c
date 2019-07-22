@@ -32,6 +32,10 @@ void set_debug_flag(int c) {
 	debug |= c;
 }
 
+int isdebug(const int level) {
+	return !!(level & debug);
+}
+
 void edprint(const int level, const char* msg, const char* file, const int line, const char* fnc)
 {
 	char syslogbuf[4096];
