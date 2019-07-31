@@ -30,11 +30,12 @@
 #include <netlink/netfilter/log.h>
 #include <netlink/netfilter/log_msg.h>
 #include <netlink/msg.h>
+#include <netlink/attr.h>
 #include <errno.h>
 
 void obj_input_nflog(struct nl_object *obj, void *arg)
 {
-        struct nfnl_log_msg *msg = (struct nfnl_log_msg *) obj;
+	struct nfnl_log_msg *msg = (struct nfnl_log_msg *) obj;
 	char buf[IF_NAMESIZE];
 
 	if (isdebug(DEBUG_NFLOG)) {
@@ -74,14 +75,25 @@ int event_input_nflog(struct nl_msg *msg, void *arg)
 		if (ofd) {
 			nl_msg_dump(msg, ofd);
 			fclose(ofd);
-			eprintf(DEBUG_NFLOG,  "received message #2: %s", buf);
+			eprintf(DEBUG_NFLOG,	"received message #2: %s", buf);
 		} else {
-			eprintf(DEBUG_NFLOG,  "received message #2");
+			eprintf(DEBUG_NFLOG,	"received message #2");
 		}
+
+		/* get hw header: <src-mac><dst-mac><00 08 aka ip> -> no VLAN */
+		struct nlattr *attr = nlmsg_find_attr(nlmsg_hdr(msg), NFNL_HDRLEN, NFULA_HWHEADER);
+		char *data = nla_data(attr);
+		int len = nla_len(attr);
+    memset(buf, 0, len);
+    int offset = 0;
+		for (int i = 0; i < len; i++)
+      offset += snprintf(buf + offset, sizeof(buf) - offset, (i > 0 ? ":%02hhx" : "%02hhx"), data[i]);
+		eprintf(DEBUG_NFLOG,	"HWHEADER %s", buf);
+
 	}
-        if (nl_msg_parse(msg, &obj_input_nflog, NULL) < 0)
-                eprintf(DEBUG_NFLOG,  "<<EVENT:nflog>> Unknown message type");
-        return NL_STOP;
+	if (nl_msg_parse(msg, &obj_input_nflog, NULL) < 0)
+		eprintf(DEBUG_NFLOG,  "<<EVENT:nflog>> Unknown message type");
+	return NL_STOP;
 }
 
 void nflog_receive(int s, void* ctx)
@@ -101,7 +113,7 @@ static __attribute__((constructor)) void nflog_init()
 	struct nl_sock *nf_sock_nflog;
 	struct nfnl_log *log;
 	int nffd;
-	
+
 	nf_sock_nflog = nl_socket_alloc();
 	if (nf_sock_nflog < 0) {
 		eprintf(DEBUG_ERROR, "cannot alloc socket: %s", strerror(errno));
@@ -138,6 +150,6 @@ static __attribute__((constructor)) void nflog_init()
 		exit(254);
 	}
 	eprintf(DEBUG_ERROR, "nflog socket %d", nffd);
-	
+
 	cb_add_handle(nffd, nf_sock_nflog, nflog_receive);
 }
