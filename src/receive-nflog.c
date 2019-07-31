@@ -37,6 +37,12 @@ void obj_input_nflog(struct nl_object *obj, void *arg)
         struct nfnl_log_msg *msg = (struct nfnl_log_msg *) obj;
 	char buf[IF_NAMESIZE];
 
+	if (isdebug(DEBUG_NFLOG)) {
+		char buf2[4096];
+		nl_object_dump_buf(obj, buf2, sizeof(buf2));
+		eprintf(DEBUG_NFLOG,  "received #2 %s", buf2);
+	}
+
 	uint32_t  indev = nfnl_log_msg_get_indev(msg);
 	uint32_t  outdev = nfnl_log_msg_get_outdev(msg);
 
@@ -60,6 +66,19 @@ void obj_input_nflog(struct nl_object *obj, void *arg)
 
 int event_input_nflog(struct nl_msg *msg, void *arg)
 {
+	if (isdebug(DEBUG_NFLOG)) {
+		char buf[4096] = {0};
+		FILE *ofd;
+
+		ofd = fmemopen(buf, sizeof(buf), "w");
+		if (ofd) {
+			nl_msg_dump(msg, ofd);
+			fclose(ofd);
+			eprintf(DEBUG_NFLOG,  "received message #2: %s", buf);
+		} else {
+			eprintf(DEBUG_NFLOG,  "received message #2");
+		}
+	}
         if (nl_msg_parse(msg, &obj_input_nflog, NULL) < 0)
                 eprintf(DEBUG_NFLOG,  "<<EVENT:nflog>> Unknown message type");
         return NL_STOP;
