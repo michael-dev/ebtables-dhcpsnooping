@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 	#ifdef REV
 	fprintf(stderr, "dhcpsnoopingd version svn-%s\n", REV);
 	#else
-	fprintf(stderr, "dhcpsnoopingd version $Id: main.c 1034 2014-02-15 18:12:55Z mbr $\n");
+	fprintf(stderr, "dhcpsnoopingd version $Id$\n");
 	#endif
 
 	parse_cmdline(argc, argv);
