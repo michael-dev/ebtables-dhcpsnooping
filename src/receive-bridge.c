@@ -51,6 +51,10 @@
 #include "cmdline.h"
 #include "timer.h"
 
+#ifdef __USE_VLAN__
+#error "no VLAN support implemented"
+#endif
+
 #define ROAMIFPREFIX "wl"
 static int numRoamIfPrefix = 0;
 static char **roamIfPrefix = NULL;

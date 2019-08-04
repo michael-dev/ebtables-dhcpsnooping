@@ -35,6 +35,10 @@
 #include <netlink/attr.h>
 #include <errno.h>
 
+#ifdef __USE_VLAN__
+#error "no VLAN support implemented"
+#endif
+
 static int groupId = NFLOG_GROUP;
 
 static void obj_input_nflog(struct nl_object *obj, void *arg)

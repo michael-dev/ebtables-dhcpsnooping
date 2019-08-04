@@ -52,6 +52,7 @@ for leases an add them, so the STAs doesn't need to repeat the DHCP handshake.
 Attentention: This needs a kernel patch, so see patch folder until it is
 applied upstream. Otherwise the AP won't learn when the STA moves from
 backbone to local wlan device on the bridge.
+Patch: patch/kernel/kernel-997-make-bridge-notify-switched-port-real.diff
 Update 2014-09-25: c65c7a306 introduced a sufficent change for this into
                    upstream kernel. It is in 3.17-rc6 and 3.16.3 but not
 		   3.14.19 at least.
@@ -92,6 +93,22 @@ local authenticated station.
 
 This can be used to reduce multicast traffic and drop multicast arp requests
 not rewritten.
+
+VLAN support
+------------
+
+Linux kernel bridge comes with VLAN support, that is, you can finally configure
+tagged and untagged VLANs per bridge port.
+As DHCP is per-VLAN, dhcpsnoopingd can track DHCP and FDB state per VLAN.
+
+This currently requires kernel and libnl patches:
+  * patch/kernel:
+    * kernel-997-make-nflog-add-vlan-information.patch
+  * patch/libnl:
+    * 01-header.patch
+    * 02-nflog-vlan.patch
+
+This needs to be enabled using --enable-vlan with configure.
 
 ebtables example
 ----------------

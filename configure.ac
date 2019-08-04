@@ -105,6 +105,12 @@ AC_ARG_ENABLE(pgsql, [  --enable-pgsql          enable PostgreSQL support], [
 	fi
 ])
 
+AC_ARG_ENABLE(vlan, [  --enable-vlan          enable vlan support], [
+	if test "x$enableval" != "xno"; then
+		AC_DEFINE([__USE_VLAN__], , [Enable vlan support])
+	fi
+])
+
 # Checks for header files.
 AC_HEADER_STDC
 

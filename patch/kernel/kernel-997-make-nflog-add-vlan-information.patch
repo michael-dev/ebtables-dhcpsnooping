@@ -1,0 +1,64 @@
+commit 42986be8da8554e5a316b00e11aeb33645aab56e
+Author: Michael Braun <michael-dev@fami-braun.de>
+Date:   Wed Jul 31 14:58:56 2019 +0200
+
+    netfilter: nfnetlink_log:add support for VLAN information
+    
+    Currently, there is no vlan information (e.g. when used with a vlan aware
+    bridge) passed to userspache, HWHEADER will contain an 08 00 (ip) suffix
+    even for tagged ip packets.
+    
+    Therefore, add an extra netlink attribute that passes the vlan tag to
+    userspace. Userspace might need to handle PCP/DEI included in this field.
+    
+    Signed-off-by: Michael Braun <michael-dev@fami-braun.de>
+
+diff --git linux-4.19.57/include/uapi/linux/netfilter/nfnetlink_log.h linux-4.19.57/include/uapi/linux/netfilter/nfnetlink_log.h
+index 20983cb19..d15f74d47 100644
+--- linux-4.19.57/include/uapi/linux/netfilter/nfnetlink_log.h
++++ linux-4.19.57/include/uapi/linux/netfilter/nfnetlink_log.h
+@@ -54,6 +54,7 @@ enum nfulnl_attr_type {
+ 	NFULA_HWLEN,			/* hardware header length */
+ 	NFULA_CT,                       /* nf_conntrack_netlink.h */
+ 	NFULA_CT_INFO,                  /* enum ip_conntrack_info */
++	NFULA_VLAN_TAG,                 /* __u16 vlan tag */
+ 
+ 	__NFULA_MAX
+ };
+diff --git linux-4.19.57/net/netfilter/nf_log_common.c linux-4.19.57/net/netfilter/nf_log_common.c
+index a8c5c846a..e892acc05 100644
+--- linux-4.19.57/net/netfilter/nf_log_common.c
++++ linux-4.19.57/net/netfilter/nf_log_common.c
+@@ -160,6 +160,8 @@ nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
+ 	       '0' + loginfo->u.log.level, prefix,
+ 	       in ? in->name : "",
+ 	       out ? out->name : "");
++	if (skb_vlan_tag_present(skb))
++	       nf_log_buf_add(m, "VLAN=%d ", skb_vlan_tag_get_id(skb));
+ #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+ 	if (skb->nf_bridge) {
+ 		const struct net_device *physindev;
+diff --git linux-4.19.57/net/netfilter/nfnetlink_log.c linux-4.19.57/net/netfilter/nfnetlink_log.c
+index 332c69d27..c9d5cd28b 100644
+--- linux-4.19.57/net/netfilter/nfnetlink_log.c
++++ linux-4.19.57/net/netfilter/nfnetlink_log.c
+@@ -19,6 +19,7 @@
+ #include <linux/skbuff.h>
+ #include <linux/if_arp.h>
+ #include <linux/init.h>
++#include <linux/if_vlan.h>
+ #include <linux/ip.h>
+ #include <linux/ipv6.h>
+ #include <linux/netdevice.h>
+@@ -583,6 +584,11 @@ __build_packet_message(struct nfnl_log_net *log,
+ 				 NFULA_CT, NFULA_CT_INFO) < 0)
+ 		goto nla_put_failure;
+ 
++	if (skb_vlan_tag_present(skb) &&
++	    nla_put_be16(inst->skb, NFULA_VLAN_TAG,
++	                 htons(skb_vlan_tag_get(skb))))
++		goto nla_put_failure;
++
+ 	if (data_len) {
+ 		struct nlattr *nla;
+ 		int size = nla_attr_size(data_len);

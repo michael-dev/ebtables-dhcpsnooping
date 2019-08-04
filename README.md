@@ -58,6 +58,22 @@ locally authenticated station.
 This can be used to reduce multicast traffic and drop multicast ARP requests
 which were not rewritten.
 
+VLAN support
+------------
+
+Linux kernel bridge comes with VLAN support, that is, you can finally configure
+tagged and untagged VLANs per bridge port.
+As DHCP is per-VLAN, dhcpsnoopingd can track DHCP and FDB state per VLAN.
+
+This currently requires kernel and libnl patches:
+  * patch/kernel:
+    * kernel-997-make-nflog-add-vlan-information.patch
+  * patch/libnl:
+    * 01-header.patch
+    * 02-nflog-vlan.patch
+
+This needs to be enabled using --enable-vlan with configure.
+
 Use case
 ========
 
@@ -132,6 +148,7 @@ this is done using the kernel bridge/netlink code.  For kernels older than
 3.17-rc6, this requires some simple kernel patching, as mostly STAs will
 just switch between the bridge ports "wlan+" and "uplink+".  See patch/ for
 details.
+Patch: patch/kernel/kernel-997-make-bridge-notify-switched-port-real.diff
 
 Notification to other instances
 -------------------------------

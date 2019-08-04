@@ -227,6 +227,9 @@ void handle_udp_message(char* buf, int recvlen)
 	if (timedelta > 0)
 		expire = reltime() + timedelta;
 
+#ifdef __USE_VLAN__
+#error "no VLAN support implemented"
+#endif
 	/* parse message */
 	if (if_nametoindex(ifname) == 0) {
 		eprintf(DEBUG_UDP,  "Interface %s unknown: %s (%d)", ifname, strerror(errno), errno);

@@ -38,6 +38,10 @@
 #define EBTABLES "ebtables"
 #endif
 
+#ifdef __USE_VLAN__
+#error "no VLAN support implemented"
+#endif
+
 void ebtables_run(const char* cmd) {
 	eprintf(DEBUG_GENERAL, "run \"%s\"", cmd);
 	if (system(cmd)) {
