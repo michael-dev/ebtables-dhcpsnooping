@@ -151,6 +151,8 @@ static void nflog_start_listen(void *ctx) {
 
 	nfnl_log_set_copy_range(log, 0xFFFF);
 
+//	nfnl_log_set_flags(log, NFNL_LOG_FLAG_CONNTRACK);
+
 	if (nfnl_log_create(nf_sock_nflog, log) < 0) {
 		eprintf(DEBUG_ERROR, "cannot create log: %s", strerror(errno));
 		exit(254);
