@@ -1,0 +1,4 @@
+#! /usr/bin/env ruby
+data = STDIN.read
+last_date = `git log --pretty=format:"%h %ad" -1`
+puts data.gsub('$Id$', '$Id: ' + last_date.to_s + '$')
