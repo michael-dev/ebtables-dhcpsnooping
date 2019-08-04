@@ -21,6 +21,8 @@
 #include "config.h"
 #include "event.h"
 #include "debug.h"
+#include "cmdline.h"
+#include "timer.h"
 
 #include <sys/types.h>
 #include <net/if.h>
@@ -33,7 +35,9 @@
 #include <netlink/attr.h>
 #include <errno.h>
 
-void obj_input_nflog(struct nl_object *obj, void *arg)
+static int groupId = NFLOG_GROUP;
+
+static void obj_input_nflog(struct nl_object *obj, void *arg)
 {
 	struct nfnl_log_msg *msg = (struct nfnl_log_msg *) obj;
 	char buf[IF_NAMESIZE];
@@ -65,7 +69,7 @@ void obj_input_nflog(struct nl_object *obj, void *arg)
 	cb_call_packet_cb(hwproto, data, len, buf);
 }
 
-int event_input_nflog(struct nl_msg *msg, void *arg)
+static int event_input_nflog(struct nl_msg *msg, void *arg)
 {
 	if (isdebug(DEBUG_NFLOG)) {
 		char buf[4096] = {0};
@@ -96,7 +100,7 @@ int event_input_nflog(struct nl_msg *msg, void *arg)
 	return NL_STOP;
 }
 
-void nflog_receive(int s, void* ctx)
+static void nflog_receive(int s, void* ctx)
 {
 	int ret;
 	struct nl_sock *nf_sock_nflog = (struct nl_sock *) ctx;
@@ -106,13 +110,21 @@ void nflog_receive(int s, void* ctx)
 	}
 }
 
-static __attribute__((constructor)) void nflog_init()
-{
-	eprintf(DEBUG_ERROR, "listen to NFLOG packets for group %d", NFLOG_GROUP);
+static void set_nflog_group(int c) {
+	if (!optarg)
+		return;
+
+	groupId = atoi(optarg);
+	fprintf(stderr, "nf log group %d\n", groupId);
+}
+
+static void nflog_start_listen(void *ctx) {
 	/* connect to netfilter / NFLOG */
 	struct nl_sock *nf_sock_nflog;
 	struct nfnl_log *log;
 	int nffd;
+
+	eprintf(DEBUG_ERROR, "listen to NFLOG packets for group %d", groupId);
 
 	nf_sock_nflog = nl_socket_alloc();
 	if (nf_sock_nflog < 0) {
@@ -133,7 +145,7 @@ static __attribute__((constructor)) void nflog_init()
 	}
 
 	log = nfnl_log_alloc();
-	nfnl_log_set_group(log, NFLOG_GROUP);
+	nfnl_log_set_group(log, groupId);
 
 	nfnl_log_set_copy_mode(log, NFNL_LOG_COPY_PACKET);
 
@@ -153,3 +165,14 @@ static __attribute__((constructor)) void nflog_init()
 
 	cb_add_handle(nffd, nf_sock_nflog, nflog_receive);
 }
+
+static __attribute__((constructor)) void nflog_init()
+{
+	{
+		struct option long_option = {"nflog-group", required_argument, 0, 0};
+		add_option_cb(long_option, set_nflog_group);
+	}
+
+	cb_add_timer(0, 0, NULL, nflog_start_listen);
+}
+
