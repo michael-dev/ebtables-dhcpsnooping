@@ -35,21 +35,17 @@
 #include <netlink/attr.h>
 #include <errno.h>
 
-#ifdef __USE_VLAN__
-#error "no VLAN support implemented"
-#endif
-
 static int groupId = NFLOG_GROUP;
 
 static void obj_input_nflog(struct nl_object *obj, void *arg)
 {
 	struct nfnl_log_msg *msg = (struct nfnl_log_msg *) obj;
-	char buf[IF_NAMESIZE];
+	char ifname[IF_NAMESIZE];
 
 	if (isdebug(DEBUG_NFLOG)) {
-		char buf2[4096];
-		nl_object_dump_buf(obj, buf2, sizeof(buf2));
-		eprintf(DEBUG_NFLOG,  "received #2 %s", buf2);
+		char buf[4096];
+		nl_object_dump_buf(obj, buf, sizeof(buf));
+		eprintf(DEBUG_NFLOG,  "received #2 %s", buf);
 	}
 
 	uint32_t  indev = nfnl_log_msg_get_indev(msg);
@@ -59,8 +55,8 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 		eprintf(DEBUG_NFLOG,  "obj_input_nflog...err indev!=outdev");
 		return;
 	}
-	memset(buf,0,sizeof(buf));
-	if (!if_indextoname(indev, buf)) {
+	memset(ifname,0,sizeof(ifname));
+	if (!if_indextoname(indev, ifname)) {
 		eprintf(DEBUG_ERROR,  "obj_input_nlog: failed to fetch interface name of ifidx %d: %s (%d)", indev, strerror(errno), errno);
 		return;
 	}
@@ -69,8 +65,14 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 	int len = 0;
 	const u_char* data = (const u_char*) nfnl_log_msg_get_payload(msg, (int*) &len);
 
+#ifdef __USE_VLAN__
+	const uint16_t vlanid = nfnl_log_msg_get_vlan_id(msg);
+#else
+	const uint16_t vlanid = 0;
+#endif
+
 	eprintf(DEBUG_NFLOG,  "obj_input...packet received");
-	cb_call_packet_cb(hwproto, data, len, buf);
+	cb_call_packet_cb(hwproto, data, len, ifname, vlanid);
 }
 
 static int event_input_nflog(struct nl_msg *msg, void *arg)
@@ -92,10 +94,10 @@ static int event_input_nflog(struct nl_msg *msg, void *arg)
 		struct nlattr *attr = nlmsg_find_attr(nlmsg_hdr(msg), NFNL_HDRLEN, NFULA_HWHEADER);
 		char *data = nla_data(attr);
 		int len = nla_len(attr);
-    memset(buf, 0, len);
-    int offset = 0;
+		memset(buf, 0, len);
+		int offset = 0;
 		for (int i = 0; i < len; i++)
-      offset += snprintf(buf + offset, sizeof(buf) - offset, (i > 0 ? ":%02hhx" : "%02hhx"), data[i]);
+			offset += snprintf(buf + offset, sizeof(buf) - offset, (i > 0 ? ":%02hhx" : "%02hhx"), data[i]);
 		eprintf(DEBUG_NFLOG,	"HWHEADER %s", buf);
 
 	}

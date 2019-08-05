@@ -52,7 +52,7 @@
 /**
  * This method handles IPv4 packets.
  */
-void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, const char* ifname)
+void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, const char* ifname, const uint16_t vlanid)
 {
 	const int c_dhcp_req = 1;
 	const int c_dhcp_ack = 2;
@@ -182,15 +182,15 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	}
 
 	if (dhcpmsgtype == LIBNET_DHCP_MSGACK) {
-		eprintf(DEBUG_DHCP| DEBUG_VERBOSE,  "DHCP ACK MAC: %s IP: %s BRIDGE: %s LeaseTime: %d" , ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, leaseTime);
+		eprintf(DEBUG_DHCP| DEBUG_VERBOSE,  "DHCP ACK MAC: %s IP: %s BRIDGE: %s VLAN: %d LeaseTime: %d" , ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, (int) vlanid, leaseTime);
 		if (tmp_yip == 0) {
 			eprintf(DEBUG_DHCP, "DHCP ACK IP 0.0.0.0 ignored");
 			return;
 		}
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGREQUEST) {
-		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REQ MAC: %s BRIDGE: %s" , ether_ntoa_z((struct ether_addr *)mac), ifname);
+		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REQ MAC: %s BRIDGE: %s VLAN: %d" , ether_ntoa_z((struct ether_addr *)mac), ifname, (int) vlanid);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGRELEASE) {
-		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REL MAC: %s BRIDGE: %s" , ether_ntoa_z((struct ether_addr *)mac), ifname);
+		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REL MAC: %s BRIDGE: %s VLAN: %d" , ether_ntoa_z((struct ether_addr *)mac), ifname, (int) vlanid);
 	} else {
 		eprintf(DEBUG_DHCP,  "ERROR - dhcp_mode is invalid");
 		return;
@@ -199,19 +199,17 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	/** update cache */
 	if (dhcpmsgtype == LIBNET_DHCP_MSGREQUEST) {
 		uint32_t expiresAt = reltime() + REQ_LIFETIME;
-		add_req_entry_if_not_found(mac, ifname, expiresAt);
+		add_req_entry_if_not_found(mac, ifname, vlanid, expiresAt);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGACK
-	           && is_local(mac, ifname)
+	           && is_local(mac, ifname, vlanid)
 		  ) {
 		uint32_t now = reltime();
 		uint32_t expiresAt = now + leaseTime;
-		updated_lease(mac, &yip, ifname, expiresAt, UPDATED_LEASE_FROM_DHCP);
+		updated_lease(mac, &yip, ifname, vlanid, expiresAt, UPDATED_LEASE_FROM_DHCP);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGACK) {
 		eprintf(DEBUG_DHCP,  " * unsoliciated DHCP ACK");
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGRELEASE) {
-		char str_ifname[IFNAMSIZ];
-		strncpy(str_ifname, ifname, IFNAMSIZ);
-		updated_lease(mac, &yip, ifname, 0, UPDATED_LEASE_FROM_DHCP);
+		updated_lease(mac, &yip, ifname, vlanid, 0, UPDATED_LEASE_FROM_DHCP);
 	} else {
 		eprintf(DEBUG_DHCP,  "ERR: invalid dhcp_mode");
 	}

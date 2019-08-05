@@ -41,9 +41,10 @@
 #include <arpa/inet.h>
 
 
-struct cache_ack_entry 
+struct cache_ack_entry
 {
 	char bridge[IF_NAMESIZE];
+	uint16_t vlanid;
 	uint8_t mac[ETH_ALEN];
 	struct in_addr ip;
 	uint32_t expiresAt;
@@ -66,12 +67,13 @@ void update_ack_timeout(struct cache_ack_entry* entry) {
        cb_add_timer(timeout + 1, 0, entry, check_expired_ack);
 }
 
-struct cache_ack_entry* get_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname) 
+struct cache_ack_entry* get_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid)
 {
 	struct cache_ack_entry* entry = globalAckCache;
 	while (entry != NULL) {
 		if (memcmp(&entry->ip, yip, sizeof(struct in_addr)) == 0
 		    && memcmp(entry->mac, mac, ETH_ALEN) == 0
+		    && entry->vlanid == vlanid
 		    && strncmp(entry->bridge, ifname, IF_NAMESIZE) == 0) {
 			break;
 		}
@@ -80,7 +82,7 @@ struct cache_ack_entry* get_ack_entry(const struct in_addr* yip, const uint8_t* 
 	return entry;
 }
 
-struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint32_t expiresAt) 
+struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt)
 {
 	struct cache_ack_entry* entry = malloc(sizeof(struct cache_ack_entry));
 	if (!entry) {
@@ -90,6 +92,7 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 	memset(entry, 0, sizeof(struct cache_ack_entry));
 	memcpy(entry->mac, mac, ETH_ALEN);
 	memcpy(&entry->ip,yip,sizeof(struct in_addr));
+	entry->vlanid = vlanid;
 	strncpy(entry->bridge, ifname, IF_NAMESIZE);
 	entry->expiresAt = expiresAt;
 	entry->next = globalAckCache;
@@ -97,18 +100,18 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 	return entry;
 }
 
-void dhcp_update_ack(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
+void dhcp_update_ack(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	int modified = 0;
 	uint32_t now = reltime();
 	assert(yip); assert(mac); assert(ifname);
-	struct cache_ack_entry* entry = get_ack_entry(yip, mac, ifname);
+	struct cache_ack_entry* entry = get_ack_entry(yip, mac, ifname, vlanid);
 	if (entry != NULL) {
 		modified = (entry->expiresAt != expiresAt);
 		entry->expiresAt = expiresAt;
 	} else if (expiresAt > now) {
-		entry = add_ack_entry(yip, mac, ifname, expiresAt);
-		ebtables_add(yip, mac, ifname);
+		entry = add_ack_entry(yip, mac, ifname, vlanid, expiresAt);
+		ebtables_add(yip, mac, ifname, vlanid);
 		modified = 1;
 	}
 	if (modified) {
@@ -138,21 +141,21 @@ void check_expired_ack(void *ctx)
 		}
 
 		eprintf(DEBUG_DHCP, "check for expired dhcp ack: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
-		if (update_lease(entry->bridge, entry->mac, &entry->ip, &expiresAt) >= 0)
+		if (update_lease(entry->bridge, entry->vlanid, entry->mac, &entry->ip, &expiresAt) >= 0)
 		{
 			if (expiresAt != entry->expiresAt)
 			{
-				updated_lease(entry->mac, &entry->ip, entry->bridge, expiresAt, UPDATED_LEASE_FROM_EXTERNAL);
+				updated_lease(entry->mac, &entry->ip, entry->bridge, entry->vlanid, expiresAt, UPDATED_LEASE_FROM_EXTERNAL);
 			}
 		}
 
 		if (ctx && !(expiresAt < now)) {
-			eprintf(DEBUG_VERBOSE, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s expiresIn: %d was updated remotely and has not yet expired (we likely missed a UDP packet)", ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
+			eprintf(DEBUG_VERBOSE, "check for expired dhcp ack (single): mac: %s ip: %s bridge: %s vlan: %d, expiresIn: %d was updated remotely and has not yet expired (we likely missed a UDP packet)", ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, (int) entry->vlanid, expiresAt - now);
 		}
 
-		eprintf(DEBUG_DHCP, "check for expired dhcp ack after update cb: mac: %s ip: %s bridge: %s expiresIn: %d", ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, expiresAt - now);
+		eprintf(DEBUG_DHCP, "check for expired dhcp ack after update cb: mac: %s ip: %s bridge: %s vlan: %d expiresIn: %d", ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, (int) entry->vlanid, expiresAt - now);
 		if (expiresAt < now) {
-			ebtables_del(&entry->ip, entry->mac, entry->bridge);
+			ebtables_del(&entry->ip, entry->mac, entry->bridge, entry->vlanid);
 			if (prev == NULL) {
 				globalAckCache = entry->next;
 			} else {
@@ -178,7 +181,7 @@ void dump_ack(int s)
 	uint32_t now = reltime();
 	struct cache_ack_entry* entry = globalAckCache;
 	while (entry != NULL) {
-		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "ack: MAC: %s IP: %s BRIDGE: %s expires in %d" , ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, (int) entry->expiresAt - (int) now);
+		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "ack: MAC: %s IP: %s BRIDGE: %s VLAN: %d expires in %d" , ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, (int) entry->vlanid, (int) entry->expiresAt - (int) now);
 		entry = entry->next;
 	}
 }

@@ -40,11 +40,12 @@
 static struct cache_fdb_entry* globalFdbCache = NULL;
 static int globalFdbCacheSize = 0;
 
-struct cache_fdb_entry* get_fdb_entry(const uint8_t* mac, const char* bridge, const unsigned int portidx) 
+struct cache_fdb_entry* get_fdb_entry(const uint8_t* mac, const char* bridge, const uint16_t vlanid, const unsigned int portidx)
 {
 	struct cache_fdb_entry* entry = globalFdbCache;
 	while (entry != NULL) {
 		if (memcmp(entry->mac, mac, ETH_ALEN) == 0 &&
+		    entry->vlanid == vlanid &&
 		    ((bridge && strncmp(entry->bridge, bridge, IF_NAMESIZE) == 0) || entry->portidx == portidx)
 		   ) {
 			break;
@@ -54,11 +55,11 @@ struct cache_fdb_entry* get_fdb_entry(const uint8_t* mac, const char* bridge, co
 	return entry;
 }
 
-void* get_fdb_entry_wrp(const uint8_t* mac, const char* bridge) {
-	return get_fdb_entry(mac, bridge, 0);
+void* get_fdb_entry_wrp(const uint8_t* mac, const char* bridge, const uint16_t vlanid) {
+	return get_fdb_entry(mac, bridge, vlanid, 0);
 }
 
-struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, uint8_t enabled, unsigned int portidx) {
+struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, const uint16_t vlanid, uint8_t enabled, unsigned int portidx) {
 	if (globalFdbCacheSize > FDBMAXSIZE) return NULL;
 	struct cache_fdb_entry* entry = malloc(sizeof(struct cache_fdb_entry));
 	if (!entry) {
@@ -68,6 +69,7 @@ struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, ui
 	memset(entry, 0, sizeof(struct cache_fdb_entry));
 	memcpy(entry->mac, mac, ETH_ALEN);
 	strncpy(entry->bridge, ifname, IF_NAMESIZE);
+	entry->vlanid = vlanid;
 	entry->enabled = enabled;
 	entry->portidx = portidx;
 	entry->next = globalFdbCache;
@@ -112,7 +114,7 @@ void dump_fdb(int s)
 {
 	struct cache_fdb_entry* entry = globalFdbCache;
 	while (entry != NULL) {
-		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "fdb: MAC: %s BRIDGE: %s %s" , ether_ntoa_z((struct ether_addr *)entry->mac), entry->bridge, (entry->enabled ? "enabled" : "disabled"));
+		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "fdb: MAC: %s BRIDGE: %s VLANID: %d %s" , ether_ntoa_z((struct ether_addr *)entry->mac), entry->bridge, (int) entry->vlanid, (entry->enabled ? "enabled" : "disabled"));
 		entry = entry->next;
 	}
 }

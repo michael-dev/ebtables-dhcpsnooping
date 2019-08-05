@@ -5,6 +5,6 @@ aclocal
 autoconf
 autoreconf -fvi
 automake --add-missing
-./configure --prefix=/tmp/usr --enable-pgsql --enable-roaming --enable-debug
+./configure --prefix=/tmp/usr --enable-pgsql --enable-roaming --enable-debug --enable-vlan
 make
 

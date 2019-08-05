@@ -32,9 +32,10 @@
 #include "ether_ntoa.h"
 #include <net/if.h>
 
-struct cache_req_entry 
+struct cache_req_entry
 {
 	char bridge[IF_NAMESIZE];
+	uint16_t vlanid;
 	uint8_t mac[ETH_ALEN];
 	uint32_t expiresAt;
 	struct cache_req_entry* next;
@@ -42,11 +43,12 @@ struct cache_req_entry
 
 static struct cache_req_entry* globalReqCache = NULL;
 
-struct cache_req_entry* get_req_entry(const uint8_t* mac, const char* ifname) 
+struct cache_req_entry* get_req_entry(const uint8_t* mac, const char* ifname, const uint16_t vlanid)
 {
 	struct cache_req_entry* entry = globalReqCache;
 	while (entry != NULL) {
 		if (memcmp(entry->mac, mac, ETH_ALEN) == 0
+		    && entry->vlanid == vlanid
 		    && strncmp(entry->bridge, ifname, IF_NAMESIZE) == 0) {
 			break;
 		}
@@ -55,11 +57,11 @@ struct cache_req_entry* get_req_entry(const uint8_t* mac, const char* ifname)
 	return entry;
 }
 
-void* get_req_entry_wrp(const uint8_t* mac, const char* ifname) {
-	return get_req_entry(mac, ifname);
+void* get_req_entry_wrp(const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
+	return get_req_entry(mac, ifname, vlanid);
 }
 
-struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, const uint32_t expiresAt) 
+struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt)
 {
 	struct cache_req_entry* entry = malloc(sizeof(struct cache_req_entry));
 	if (!entry) {
@@ -69,17 +71,18 @@ struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, co
 	memset(entry, 0, sizeof(struct cache_req_entry));
 	memcpy(entry->mac, mac, ETH_ALEN);
 	strncpy(entry->bridge, ifname, IF_NAMESIZE);
+	entry->vlanid = vlanid;
 	entry->expiresAt = expiresAt;
 	entry->next = globalReqCache;
 	globalReqCache = entry;
 	return entry;
 }
 
-void add_req_entry_if_not_found(const uint8_t* mac, const char* ifname, const uint32_t expiresAt) 
+void add_req_entry_if_not_found(const uint8_t* mac, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt)
 {
-	struct cache_req_entry* entry = get_req_entry(mac, ifname);
+	struct cache_req_entry* entry = get_req_entry(mac, ifname, vlanid);
 	if (entry == NULL) {
-		add_req_entry(mac, ifname, expiresAt);
+		add_req_entry(mac, ifname, vlanid, expiresAt);
 	} else {
 		entry->expiresAt = expiresAt;
 	}
@@ -115,7 +118,7 @@ void dump_req(int s)
 	uint32_t now = reltime();
 	struct cache_req_entry* entry = globalReqCache;
 	while (entry != NULL) {
-		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "req: MAC: %s BRIDGE: %s expires in %d" , ether_ntoa_z((struct ether_addr *)entry->mac), entry->bridge, (int) entry->expiresAt - (int) now);
+		eprintf(DEBUG_GENERAL | DEBUG_VERBOSE,  "req: MAC: %s BRIDGE: %s VLAN: %d expires in %d" , ether_ntoa_z((struct ether_addr *)entry->mac), entry->bridge, (int) entry->vlanid, (int) entry->expiresAt - (int) now);
 		entry = entry->next;
 	}
 }

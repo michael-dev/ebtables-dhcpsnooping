@@ -38,10 +38,6 @@
 #define EBTABLES "ebtables"
 #endif
 
-#ifdef __USE_VLAN__
-#error "no VLAN support implemented"
-#endif
-
 void ebtables_run(const char* cmd) {
 	eprintf(DEBUG_GENERAL, "run \"%s\"", cmd);
 	if (system(cmd)) {
@@ -51,11 +47,8 @@ void ebtables_run(const char* cmd) {
 	}
 }
 
-void ebtables_add(const struct in_addr* yip, const uint8_t* mac, const char* ifname) {
+static void ebtables_add_novlan(const struct in_addr* yip, const uint8_t* mac, const char* ifname) {
 	char cmd[65535];
-
-	assert(yip); assert(mac); assert(ifname);
-	eprintf(DEBUG_VERBOSE, "add ebtables rule: MAC: %s IP: %s VLAN: %s", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname);
 
 	snprintf(cmd, sizeof(cmd), EBTABLES " -A " CHAINNAME " -s %s --proto ipv4 --ip-source %s --logical-in %s -j ACCEPT",
 	         ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname);
@@ -70,11 +63,33 @@ void ebtables_add(const struct in_addr* yip, const uint8_t* mac, const char* ifn
 	ebtables_run(cmd);
 }
 
-void ebtables_del(const struct in_addr* yip, const uint8_t* mac, const char* ifname) {
+static void ebtables_add_vlan(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
 	char cmd[65535];
 
+	snprintf(cmd, sizeof(cmd), EBTABLES " -A " CHAINNAME " -s %s --proto 802_1Q --vlan-id %d --vlan-encap ipv4 --ip-source %s --logical-in %s -j ACCEPT",
+	         ether_ntoa_z((struct ether_addr *)mac), (int) vlanid, inet_ntoa(*yip), ifname);
+	ebtables_run(cmd);
+
+	snprintf(cmd, sizeof(cmd), EBTABLES " -A " CHAINNAME " -s %s --proto 802_1Q --vlan-id %d --vlan-encap arp --arp-ip-src %s --logical-in %s -j ACCEPT",
+	         ether_ntoa_z((struct ether_addr *)mac), (int) vlanid, inet_ntoa(*yip), ifname);
+	ebtables_run(cmd);
+
+	snprintf(cmd, sizeof(cmd), EBTABLES " -t nat -A " CHAINNAME " --proto 802_1Q --vlan-id %d --vlan-encap arp --arp-ip-dst %s --logical-in %s -j dnat --to-destination %s --dnat-target CONTINUE",
+	         (int) vlanid, inet_ntoa(*yip), ifname, ether_ntoa_z((struct ether_addr *)mac));
+	ebtables_run(cmd);
+}
+
+void ebtables_add(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
 	assert(yip); assert(mac); assert(ifname);
-	eprintf(DEBUG_VERBOSE, "remove ebtables rule: MAC: %s IP: %s VLAN: %s", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname);
+	eprintf(DEBUG_VERBOSE, "add ebtables rule: MAC: %s IP: %s BRIDGE: %s VLAN: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, (int) vlanid);
+	if (vlanid == 0)
+		ebtables_add_novlan(yip, mac, ifname);
+	else
+		ebtables_add_vlan(yip, mac, ifname, vlanid);
+}
+
+static void ebtables_del_novlan(const struct in_addr* yip, const uint8_t* mac, const char* ifname) {
+	char cmd[65535];
 
 	snprintf(cmd, sizeof(cmd), EBTABLES " -D " CHAINNAME " -s %s --proto ipv4 --ip-source %s --logical-in %s -j ACCEPT",
 	         ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname);
@@ -87,4 +102,29 @@ void ebtables_del(const struct in_addr* yip, const uint8_t* mac, const char* ifn
 	snprintf(cmd, sizeof(cmd), EBTABLES " -t nat -D " CHAINNAME " --proto arp --arp-ip-dst %s --logical-in %s -j dnat --to-destination %s --dnat-target CONTINUE",
 	         inet_ntoa(*yip), ifname, ether_ntoa_z((struct ether_addr *)mac));
 	ebtables_run(cmd);
+}
+
+static void ebtables_del_vlan(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
+	char cmd[65535];
+
+	snprintf(cmd, sizeof(cmd), EBTABLES " -D " CHAINNAME " -s %s --proto 802_1Q --vlan-id %d --vlan-encap ipv4 --ip-source %s --logical-in %s -j ACCEPT",
+	         ether_ntoa_z((struct ether_addr *)mac), (int) vlanid, inet_ntoa(*yip), ifname);
+	ebtables_run(cmd);
+
+	snprintf(cmd, sizeof(cmd), EBTABLES " -D " CHAINNAME " -s %s --proto 802_1Q --vlan-id %d --vlan-encap arp --arp-ip-src %s --logical-in %s -j ACCEPT",
+	         ether_ntoa_z((struct ether_addr *)mac), (int) vlanid, inet_ntoa(*yip), ifname);
+	ebtables_run(cmd);
+
+	snprintf(cmd, sizeof(cmd), EBTABLES " -t nat -D " CHAINNAME " --proto 802_1Q --vlan-id %d --vlan-encap arp --arp-ip-dst %s --logical-in %s -j dnat --to-destination %s --dnat-target CONTINUE",
+	         (int) vlanid, inet_ntoa(*yip), ifname, ether_ntoa_z((struct ether_addr *)mac));
+	ebtables_run(cmd);
+}
+
+void ebtables_del(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
+	assert(yip); assert(mac); assert(ifname);
+	eprintf(DEBUG_VERBOSE, "remove ebtables rule: MAC: %s IP: %s BRIDGE: %s VLAN: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, (int) vlanid);
+	if (vlanid == 0)
+		ebtables_del_novlan(yip, mac, ifname);
+	else
+		ebtables_del_vlan(yip, mac, ifname, vlanid);
 }

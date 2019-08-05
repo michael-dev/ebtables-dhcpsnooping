@@ -64,7 +64,7 @@ pgsqlNoticeProcessor(void *arg, const char *message)
 	eprintf(DEBUG_ERROR, "%s", message);
 }
 
-int pgsql_connected() 
+int pgsql_connected()
 {
 	static int connected = 0;
 	PGresult *res;
@@ -107,7 +107,7 @@ int pgsql_connected()
 	return connected;
 }
 
-PGresult * pgsql_query_errprint_query(const char* sql) 
+PGresult * pgsql_query_errprint_query(const char* sql)
 {
 	PGresult *res;
 	ExecStatusType err;
@@ -152,16 +152,16 @@ int pgsql_query_errprint(const char* sql) {
 void pgsql_remove_old_leases_from_db(void *ctx)
 {
 	char sql[1024];
-	
+
 	if (!pgsql_connected())
 		return;
-	
+
 	/* update pgsql */
 	snprintf(sql, sizeof(sql), "DELETE FROM " PGSQLLEASETABLE " WHERE validUntil <= CURRENT_TIMESTAMP");
 	pgsql_query_errprint(sql);
 }
 
-void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
+void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	/* only write DHCP ACK packet changes back */
 	if (reason != UPDATED_LEASE_FROM_DHCP)
@@ -172,11 +172,16 @@ void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 	/* add to pgsql */
 	if (!pgsql_connected())
 		return;
-	
+
 	const uint32_t now = reltime();
 	eprintf(DEBUG_VERBOSE, "sql: update lease: MAC: %s IP: %s VLAN: %s expiresIn: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, expiresAt - now);
 
-	char *sql_esc_bridge = PQescapeLiteral(pgsql, ifname, strlen(ifname));
+	char vlan[255];
+	if (vlanid)
+		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid);
+	else
+		snprintf(vlan, sizeof(vlan), "%s", ifname);
+	char *sql_esc_bridge = PQescapeLiteral(pgsql, vlan, strlen(vlan));
 	if (!sql_esc_bridge) return;
 
 	char sql[2048];
@@ -190,16 +195,21 @@ void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 	pgsql_query_errprint(sql);
 }
 
-int pgsql_update_lease_from_sql(const char* ifname, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
+int pgsql_update_lease_from_sql(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
 {
 	PGresult * res;
 	char sql[1024];
+	char vlan[255];
 	char *sql_esc_bridge;
 
 	if (!pgsql_connected())
 		return -1;
-	
-	sql_esc_bridge = PQescapeLiteral(pgsql, ifname, strlen(ifname));
+
+	if (vlanid)
+		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid);
+	else
+		snprintf(vlan, sizeof(vlan), "%s", ifname);
+	sql_esc_bridge = PQescapeLiteral(pgsql, vlan, strlen(vlan));
 	snprintf(sql, sizeof(sql), "SELECT ceil(extract('epoch' from (validUntil - CURRENT_TIMESTAMP)))::varchar as expiresin FROM " PGSQLLEASETABLE " WHERE validUntil > CURRENT_TIMESTAMP AND bridge = %s AND mac = '%s' AND ip = '%s';", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip));
 	PQfreemem(sql_esc_bridge); sql_esc_bridge = NULL;
 
@@ -228,19 +238,24 @@ int pgsql_update_lease_from_sql(const char* ifname, const uint8_t* mac, const st
 	return 0;
 }
 
-void pgsql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* mac, lease_cb cb)
+void pgsql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint16_t vlanid, const uint8_t* mac, lease_cb cb)
 {
 	/* query sql for lease and add local rules*/
 	PGresult * res;
 	char sql[1024];
+	char vlan[255];
 	char *sql_esc_bridge;
 	const uint32_t now = reltime();
-	
+
 	if (!pgsql_connected())
 		return;
 	eprintf(DEBUG_NEIGH, "query pgsql\n");
 
-	sql_esc_bridge = PQescapeLiteral(pgsql, ifname, strlen(ifname));
+	if (vlanid)
+		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid);
+	else
+		snprintf(vlan, sizeof(vlan), "%s", ifname);
+	sql_esc_bridge = PQescapeLiteral(pgsql, vlan, strlen(vlan));
 	snprintf(sql, sizeof(sql), "SELECT ip::varchar as ip, ceil(extract('epoch' from MAX(validUntil) - CURRENT_TIMESTAMP))::varchar as expiresin FROM " PGSQLLEASETABLE " WHERE validUntil > CURRENT_TIMESTAMP AND bridge = %s AND mac = '%s' GROUP BY ip;", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac));
 	PQfreemem(sql_esc_bridge); sql_esc_bridge = NULL;
 
@@ -265,19 +280,19 @@ void pgsql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint8_t* m
 			continue;
 		}
 		uint32_t expiresAt = atoi(expiresIn) + now;
-		cb (mac, &yip, ifname, expiresAt, UPDATED_LEASE_FROM_EXTERNAL);
+		cb (mac, &yip, ifname, vlanid, expiresAt, UPDATED_LEASE_FROM_EXTERNAL);
 	}
 	PQclear(res); res = NULL;
 out:
 	eprintf(DEBUG_NEIGH, "pgsql completed");
 }
 
-void set_pgsql_config_file(int c) 
+void set_pgsql_config_file(int c)
 {
 	pgsql_config_file = optarg;
 }
 
-void set_pgsql_config_name(int c) 
+void set_pgsql_config_name(int c)
 {
 	pgsql_config_name = optarg;
 }

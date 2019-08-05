@@ -51,10 +51,6 @@
 #include "cmdline.h"
 #include "timer.h"
 
-#ifdef __USE_VLAN__
-#error "no VLAN support implemented"
-#endif
-
 #define ROAMIFPREFIX "wl"
 static int numRoamIfPrefix = 0;
 static char **roamIfPrefix = NULL;
@@ -67,6 +63,7 @@ struct helper2 {
 void fdb_del_by_ifname_and_port(struct cache_fdb_entry* entry, void* ctx) {
 	struct helper2* tmp = (struct helper2* ) ctx;
 
+	/* DELLINK does not care for VLANID */
 	if (strncmp(entry->bridge, tmp->ifname, IF_NAMESIZE) != 0 && entry->portidx != tmp->ifidx) {
 		return;
 	}
@@ -191,24 +188,31 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 			type = RTM_DELNEIGH;
 	}
 
+#ifdef __USE_VLAN__
+       	int vlanid = rtnl_neigh_get_vlan(neigh);
+	if (vlanid < 0)
+		vlanid = 0; /* zero is our no-vlan */
+#else
+	const int vlanid = 0;
+#endif
 	struct ether_addr *mac = ether_aton(lladdr);
 	int exists;
 	{
-		struct cache_fdb_entry* entry = get_fdb_entry((uint8_t*) mac, bridgeifname, ifidx);
+		struct cache_fdb_entry* entry = get_fdb_entry((uint8_t*) mac, bridgeifname, (uint16_t) vlanid, ifidx);
 		exists = (entry && entry->enabled);
 		switch (type) {
 			case RTM_DELNEIGH:
 				if (exists) {
-					eprintf(DEBUG_GENERAL | DEBUG_VERBOSE, "delete neigh %s on %s", lladdr, entry->bridge);
+					eprintf(DEBUG_GENERAL | DEBUG_VERBOSE, "delete neigh %s on %s vlan %d", lladdr, entry->bridge, vlanid);
 					entry->enabled = 0;
 				}
 			break;
 			case RTM_NEWNEIGH:
 				if (!exists) {
 					assert(bridgeifname);
-					eprintf(DEBUG_GENERAL | DEBUG_VERBOSE, "add neigh %s on %s on %s", lladdr, (bridgeifname ? bridgeifname : "NULL"), (linkifname ? linkifname : "NULL"));
+					eprintf(DEBUG_GENERAL | DEBUG_VERBOSE, "add neigh %s on %s on %s vlan %d", lladdr, (bridgeifname ? bridgeifname : "NULL"), (linkifname ? linkifname : "NULL"), vlanid);
 					if (!entry)
-						add_fdb_entry((uint8_t*) mac, bridgeifname, 1, ifidx);
+						add_fdb_entry((uint8_t*) mac, bridgeifname, (uint16_t) vlanid, 1, ifidx);
 					else
 						entry->enabled = 1;
 				}
@@ -217,7 +221,7 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 	}
 
 	if (type == RTM_NEWNEIGH && !exists) {
-		lease_lookup_by_mac(bridgeifname, (uint8_t*) mac, updated_lease);
+		lease_lookup_by_mac(bridgeifname, (uint16_t) vlanid, (uint8_t*) mac, updated_lease);
 	}
 out:
 	if (link)

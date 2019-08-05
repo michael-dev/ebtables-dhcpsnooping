@@ -25,21 +25,21 @@
 #include <stdio.h>
 #include <string.h>
 
-struct is_local_entry 
+struct is_local_entry
 {
 	is_local_cb cb;
 	struct is_local_entry *next;
 };
 static struct is_local_entry* globalIsLocalHook = NULL;
 
-struct update_lease_entry 
+struct update_lease_entry
 {
 	update_lease_cb cb;
 	struct update_lease_entry *next;
 };
 static struct update_lease_entry* globalUpdateLeaseHook = NULL;
 
-struct updated_lease_entry 
+struct updated_lease_entry
 {
 	updated_lease_cb cb;
 	int prio;
@@ -54,7 +54,7 @@ struct lease_lookup_by_mac_entry
 };
 static struct lease_lookup_by_mac_entry* globalLookupLeaseHook = NULL;
 
-void add_is_local_hook(is_local_cb cb) 
+void add_is_local_hook(is_local_cb cb)
 {
 	struct is_local_entry *entry = malloc(sizeof(struct is_local_entry));
 	if (!entry) {
@@ -67,15 +67,15 @@ void add_is_local_hook(is_local_cb cb)
 	globalIsLocalHook = entry;
 }
 
-int is_local (const uint8_t* mac, const char* ifname) 
+int is_local (const uint8_t* mac, const char* ifname, const uint16_t vlanid)
 {
 	for (struct is_local_entry* entry = globalIsLocalHook; entry; entry = entry->next) {
-		if (entry->cb(mac, ifname)) return 1;
+		if (entry->cb(mac, ifname, vlanid)) return 1;
 	}
 	return 0;
 }
 
-void add_update_lease_hook(update_lease_cb cb) 
+void add_update_lease_hook(update_lease_cb cb)
 {
 	struct update_lease_entry *entry = malloc(sizeof(struct update_lease_entry));
 	if (!entry) {
@@ -88,15 +88,15 @@ void add_update_lease_hook(update_lease_cb cb)
 	globalUpdateLeaseHook = entry;
 }
 
-int update_lease(const char* ifname, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
+int update_lease(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
 {
 	for (struct update_lease_entry *entry = globalUpdateLeaseHook; entry; entry = entry->next) {
-		if (entry->cb(ifname, mac, ip, expiresAt) < 0) return -1;
+		if (entry->cb(ifname, vlanid, mac, ip, expiresAt) < 0) return -1;
 	}
 	return 0;
 }
 
-void add_updated_lease_hook(updated_lease_cb cb, const int prio) 
+void add_updated_lease_hook(updated_lease_cb cb, const int prio)
 {
 	struct updated_lease_entry *entry = malloc(sizeof(struct updated_lease_entry));
 	if (!entry) {
@@ -123,10 +123,10 @@ void add_updated_lease_hook(updated_lease_cb cb, const int prio)
 		globalUpdatedLeaseHook = entry;
 }
 
-void updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint32_t expiresAt, const enum t_lease_update_src reason)
+void updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	for (struct updated_lease_entry *entry = globalUpdatedLeaseHook; entry; entry = entry->next) {
-		entry->cb(mac, yip, ifname, expiresAt, reason);
+		entry->cb(mac, yip, ifname, vlanid, expiresAt, reason);
 	}
 }
 
@@ -143,10 +143,10 @@ void add_lease_lookup_by_mac(lease_lookup_by_mac_cb cb)
 	globalLookupLeaseHook = entry;
 }
 
-void lease_lookup_by_mac(const char* ifname, const uint8_t* mac, lease_cb cb)
+void lease_lookup_by_mac(const char* ifname, const uint16_t vlanid, const uint8_t* mac, lease_cb cb)
 {
 	for (struct lease_lookup_by_mac_entry *entry = globalLookupLeaseHook; entry; entry = entry->next) {
-		entry->cb(ifname, mac, cb);
+		entry->cb(ifname, vlanid, mac, cb);
 	}
 }
 

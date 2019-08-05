@@ -65,9 +65,9 @@ void cb_add_packet_cb(packet_cb cb) {
 	packet_cb_list = entry;
 };
 
-void cb_call_packet_cb(const int ptype, const uint8_t *packet, const int len, const char* ifname) {
+void cb_call_packet_cb(const int ptype, const uint8_t *packet, const int len, const char* ifname, const uint16_t vlanid) {
 	for (struct packet_cb_list_entry* entry = packet_cb_list; entry; entry = entry->next) {
-		entry->cb(ptype, packet, len, ifname);
+		entry->cb(ptype, packet, len, ifname, vlanid);
 	}
 };
 
