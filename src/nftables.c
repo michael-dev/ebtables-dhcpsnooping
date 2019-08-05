@@ -51,9 +51,12 @@
 
 static int disabled = 0;
 static int legacy = 0;
+static int dry = 0;
 
 static void nftables_run(const char* cmd) {
 	eprintf(DEBUG_GENERAL, "run \"%s\"", cmd);
+	if (dry) return;
+
 	if (system(cmd)) {
 		eprintf(DEBUG_ERROR, "cmd \"%s\" failed", cmd);
 	} else {
@@ -135,12 +138,19 @@ static void enable_nftables_legacy(int c)
 	legacy = 1;
 }
 
+static void dry_nftables(int c)
+{
+	dry = 1;
+}
+
 static __attribute__((constructor)) void nftables_init()
 {
         static struct option de_option = {"disable-nftables", no_argument, 0, 0};
         add_option_cb(de_option, disable_nftables);
         static struct option le_option = {"nftables-legacy", no_argument, 0, 0};
         add_option_cb(le_option, enable_nftables_legacy);
+        static struct option dry_option = {"dry-nftables", no_argument, 0, 0};
+        add_option_cb(dry_option, dry_nftables);
 	add_lease_start_stop_hook(nftables_do);
 }
 

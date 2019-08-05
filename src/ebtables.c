@@ -43,9 +43,12 @@
 #ifdef __USE_EBTABLES__
 
 static int disabled = 0;
+static int dry = 0;
 
 static void ebtables_run(const char* cmd) {
 	eprintf(DEBUG_GENERAL, "run \"%s\"", cmd);
+	if (dry) return;
+
 	if (system(cmd)) {
 		eprintf(DEBUG_ERROR, "cmd \"%s\" failed", cmd);
 	} else {
@@ -106,10 +109,17 @@ static void disable_ebtables(int c)
 	disabled = 1;
 }
 
+static void dry_ebtables(int c)
+{
+	dry = 1;
+}
+
 static __attribute__((constructor)) void ebtables_init()
 {
         static struct option de_option = {"disable-ebtables", no_argument, 0, 0};
         add_option_cb(de_option, disable_ebtables);
+        static struct option dry_option = {"dry-ebtables", no_argument, 0, 0};
+        add_option_cb(dry_option, dry_ebtables);
 	add_lease_start_stop_hook(ebtables_do);
 }
 
