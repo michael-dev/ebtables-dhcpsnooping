@@ -145,7 +145,7 @@ void mysql_remove_old_leases_from_db(void *ctx)
 	mysql_query_errprint(sql);
 }
 
-void mysql_update_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
+void mysql_update_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const int vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	char vlan[255];
 
@@ -160,7 +160,7 @@ void mysql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 		return;
 
 	const uint32_t now = reltime();
-	if (vlanid)
+	if (vlanid >= 0)
 		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid)
 	else
 		snprintf(vlan, sizeof(vlan), "%s", ifname)
@@ -178,7 +178,7 @@ void mysql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 	mysql_query_errprint(sql);
 }
 
-int mysql_update_lease_from_sql(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
+int mysql_update_lease_from_sql(const char* ifname, const int vlanid, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
 {
 	MYSQL_RES *result;
 	MYSQL_ROW row;
@@ -189,7 +189,7 @@ int mysql_update_lease_from_sql(const char* ifname, const uint16_t vlanid, const
 	if (!mysql_connected())
 		return -1;
 
-	if (vlanid)
+	if (vlanid >= 0)
 		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid)
 	else
 		snprintf(vlan, sizeof(vlan), "%s", ifname)
@@ -213,7 +213,7 @@ int mysql_update_lease_from_sql(const char* ifname, const uint16_t vlanid, const
 	return 0;
 }
 
-void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint16_t vlanid, const uint8_t* mac, lease_cb cb)
+void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const int vlanid, const uint8_t* mac, lease_cb cb)
 {
 	if (!mysql_connected())
 		return;
@@ -227,7 +227,7 @@ void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint16_t v
 	MYSQL_RES *result;
 	MYSQL_ROW row;
 
-	if (vlanid)
+	if (vlanid >= 0)
 		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid)
 	else
 		snprintf(vlan, sizeof(vlan), "%s", ifname)

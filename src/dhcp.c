@@ -74,7 +74,7 @@ void add_is_local_hook(is_local_cb cb)
 	globalIsLocalHook = entry;
 }
 
-int is_local (const uint8_t* mac, const char* ifname, const uint16_t vlanid)
+int is_local (const uint8_t* mac, const char* ifname, const int vlanid)
 {
 	for (struct is_local_entry* entry = globalIsLocalHook; entry; entry = entry->next) {
 		if (entry->cb(mac, ifname, vlanid)) return 1;
@@ -95,7 +95,7 @@ void add_update_lease_hook(update_lease_cb cb)
 	globalUpdateLeaseHook = entry;
 }
 
-int update_lease(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
+int update_lease(const char* ifname, const int vlanid, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
 {
 	for (struct update_lease_entry *entry = globalUpdateLeaseHook; entry; entry = entry->next) {
 		if (entry->cb(ifname, vlanid, mac, ip, expiresAt) < 0) return -1;
@@ -130,7 +130,7 @@ void add_updated_lease_hook(updated_lease_cb cb, const int prio)
 		globalUpdatedLeaseHook = entry;
 }
 
-void updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
+void updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const int vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	for (struct updated_lease_entry *entry = globalUpdatedLeaseHook; entry; entry = entry->next) {
 		entry->cb(mac, yip, ifname, vlanid, expiresAt, reason);
@@ -150,7 +150,7 @@ void add_lease_lookup_by_mac(lease_lookup_by_mac_cb cb)
 	globalLookupLeaseHook = entry;
 }
 
-void lease_lookup_by_mac(const char* ifname, const uint16_t vlanid, const uint8_t* mac, lease_cb cb)
+void lease_lookup_by_mac(const char* ifname, const int vlanid, const uint8_t* mac, lease_cb cb)
 {
 	for (struct lease_lookup_by_mac_entry *entry = globalLookupLeaseHook; entry; entry = entry->next) {
 		entry->cb(ifname, vlanid, mac, cb);
@@ -170,7 +170,7 @@ void add_lease_start_stop_hook(lease_start_stop_cb cb)
 	globalStartStopLeaseHook = entry;
 }
 
-void lease_start_stop(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, const int start)
+void lease_start_stop(const char* ifname, const int vlanid, const uint8_t* mac, const struct in_addr* ip, const int start)
 {
 	for (struct lease_start_stop_entry *entry = globalStartStopLeaseHook; entry; entry = entry->next) {
 		entry->cb(ifname, vlanid, mac, ip, start);

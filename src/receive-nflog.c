@@ -66,9 +66,11 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 	const u_char* data = (const u_char*) nfnl_log_msg_get_payload(msg, (int*) &len);
 
 #ifdef __USE_VLAN__
-	const uint16_t vlanid = nfnl_log_msg_get_vlan_id(msg);
+	int vlanid = -1;
+	if (nfnl_log_msg_test_vlan_tag(msg))
+		vlanid = nfnl_log_msg_get_vlan_id(msg);
 #else
-	const uint16_t vlanid = 0;
+	const int vlanid = -1;
 #endif
 
 	eprintf(DEBUG_NFLOG,  "obj_input...packet received");

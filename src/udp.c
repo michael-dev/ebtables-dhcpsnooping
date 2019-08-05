@@ -146,7 +146,7 @@ void set_broadcast_addr(int c)
 	}
 }
 
-void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
+void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const int vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	static int broadcastSock = 0;
 	struct sockaddr_in sbroadcastAddr; /* Broadcast address */
@@ -156,8 +156,8 @@ void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname
 	if (reason != UPDATED_LEASE_FROM_DHCP)
 		return;
 
-	if (vlanid)
-		snprintf(msg, sizeof(msg), "%s%d\t%s\t%s\t%d\t%s", ifname, (int) vlanid, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), (int) (expiresAt - reltime()), myhostname);
+	if (vlanid >= 0)
+		snprintf(msg, sizeof(msg), "%s%d\t%s\t%s\t%d\t%s", ifname, vlanid, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), (int) (expiresAt - reltime()), myhostname);
 	else
 		snprintf(msg, sizeof(msg), "%s\t%s\t%s\t%d\t%s", ifname, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), (int) (expiresAt - reltime()), myhostname);
 
@@ -231,7 +231,7 @@ void handle_udp_message(char* buf, int recvlen)
 		expire = reltime() + timedelta;
 
 #ifdef __USE_VLAN__
-	uint16_t vlanid = 0;
+	int vlanid = -1;
 	for (int i = strlen(ifname) - 1; i >= 0; i--) {
 		if (ifname[i] < '0' || ifname[i] > '9') {
 			vlanid = atoi(ifname + i + 1);
@@ -240,11 +240,11 @@ void handle_udp_message(char* buf, int recvlen)
 		}
 	}
 #else
-	const uint16_t vlanid = 0;
+	const int vlanid = -1;
 #endif
 	/* parse message */
 	if (if_nametoindex(ifname) == 0) {
-		eprintf(DEBUG_UDP,  "Interface %s vlan %d unknown: %s (%d)", ifname, (int) vlanid, strerror(errno), errno);
+		eprintf(DEBUG_UDP,  "Interface %s vlan %d unknown: %s (%d)", ifname, vlanid, strerror(errno), errno);
 		return;
 	}
 
@@ -255,12 +255,12 @@ void handle_udp_message(char* buf, int recvlen)
 
 	/* do not easily accept remotely given expireAt */
 	if (update_lease(ifname, vlanid, mac, &yip, &expire) < 0) {
-		eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: sql query for lease MAC: %s IP: %s BRIDGE: %s VLAN: %d failed", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, (int) vlanid);
+		eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: sql query for lease MAC: %s IP: %s BRIDGE: %s VLAN: %d failed", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, vlanid);
 		return;
 	}
 
 	/* add lease */
-	eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: updating lease MAC: %s IP: %s BRIDGE: %s VLAN: %d expiresIn:%d (from: %s)", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, (int) vlanid, timedelta, str_hostname);
+	eprintf(DEBUG_UDP | DEBUG_VERBOSE, "udp: updating lease MAC: %s IP: %s BRIDGE: %s VLAN: %d expiresIn:%d (from: %s)", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, vlanid, timedelta, str_hostname);
 	updated_lease(mac, &yip, ifname, vlanid, expire, UPDATED_LEASE_FROM_EXTERNAL);
 }
 

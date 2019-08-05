@@ -18,8 +18,6 @@
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
-#ifdef __USE_EBTABLES__
-
 #include "config.h"
 #include "debug.h"
 #include "cmdline.h"
@@ -42,6 +40,8 @@
 #define EBTABLES "ebtables"
 #endif
 
+#ifdef __USE_EBTABLES__
+
 static int disabled = 0;
 
 static void ebtables_run(const char* cmd) {
@@ -53,52 +53,52 @@ static void ebtables_run(const char* cmd) {
 	}
 }
 
-static void ebtables_novlan(const char* op, const struct in_addr* yip, const uint8_t* mac, const char* ifname) {
+static void ebtables_novlan(const char* op, const struct in_addr* ip, const uint8_t* mac, const char* ifname) {
 	char cmd[65535];
 
 	snprintf(cmd, sizeof(cmd), EBTABLES " %s " CHAINNAME " -s %s --proto ipv4 --ip-source %s --logical-in %s -j ACCEPT",
-	         op, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname);
+	         op, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname);
 	ebtables_run(cmd);
 
 	snprintf(cmd, sizeof(cmd), EBTABLES " %s " CHAINNAME " -s %s --proto arp --arp-ip-src %s --logical-in %s -j ACCEPT",
-	         op, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname);
+	         op, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname);
 	ebtables_run(cmd);
 
 	snprintf(cmd, sizeof(cmd), EBTABLES " -t nat %s " CHAINNAME " --proto arp --arp-ip-dst %s --logical-in %s -j dnat --to-destination %s --dnat-target CONTINUE",
-	         op, inet_ntoa(*yip), ifname, ether_ntoa_z((struct ether_addr *)mac));
+	         op, inet_ntoa(*ip), ifname, ether_ntoa_z((struct ether_addr *)mac));
 	ebtables_run(cmd);
 }
 
-static void ebtables_add_vlan(const char* op, const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
+static void ebtables_vlan(const char* op, const struct in_addr* ip, const uint8_t* mac, const char* ifname, const int vlanid) {
 	char cmd[65535];
 
 	snprintf(cmd, sizeof(cmd), EBTABLES " %s " CHAINNAME " -s %s --proto 802_1Q --vlan-id %d --vlan-encap ipv4 --ip-source %s --logical-in %s -j ACCEPT",
-	         op, ether_ntoa_z((struct ether_addr *)mac), (int) vlanid, inet_ntoa(*yip), ifname);
+	         op, ether_ntoa_z((struct ether_addr *)mac), vlanid, inet_ntoa(*ip), ifname);
 	ebtables_run(cmd);
 
 	snprintf(cmd, sizeof(cmd), EBTABLES " %s " CHAINNAME " -s %s --proto 802_1Q --vlan-id %d --vlan-encap arp --arp-ip-src %s --logical-in %s -j ACCEPT",
-	         op, ether_ntoa_z((struct ether_addr *)mac), (int) vlanid, inet_ntoa(*yip), ifname);
+	         op, ether_ntoa_z((struct ether_addr *)mac), vlanid, inet_ntoa(*ip), ifname);
 	ebtables_run(cmd);
 
 	snprintf(cmd, sizeof(cmd), EBTABLES " -t nat %s " CHAINNAME " --proto 802_1Q --vlan-id %d --vlan-encap arp --arp-ip-dst %s --logical-in %s -j dnat --to-destination %s --dnat-target CONTINUE",
-	         op, (int) vlanid, inet_ntoa(*yip), ifname, ether_ntoa_z((struct ether_addr *)mac));
+	         op, vlanid, inet_ntoa(*ip), ifname, ether_ntoa_z((struct ether_addr *)mac));
 	ebtables_run(cmd);
 }
 
-static void ebtables_do(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, const int start)
+static void ebtables_do(const char* ifname, const int vlanid, const uint8_t* mac, const struct in_addr* ip, const int start)
 {
-	assert(yip); assert(mac); assert(ifname);
+	assert(ip); assert(mac); assert(ifname);
 	if (disabled)
 		return;
 
-	eprintf(DEBUG_VERBOSE, "%s ebtables rule: MAC: %s IP: %s BRIDGE: %s VLAN: %d", (start ? "add" : "delete"), ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, (int) vlanid);
+	eprintf(DEBUG_VERBOSE, "%s ebtables rule: MAC: %s IP: %s BRIDGE: %s VLAN: %d", (start ? "add" : "delete"), ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname, vlanid);
 
 	const char* op = start ? "-A" : "-D";
 
 	if (vlanid == 0)
-		ebtables_novlan(op, yip, mac, ifname);
+		ebtables_novlan(op, ip, mac, ifname);
 	else
-		ebtables_vlan(op, yip, mac, ifname, vlanid);
+		ebtables_vlan(op, ip, mac, ifname, vlanid);
 }
 
 static void disable_ebtables(int c)

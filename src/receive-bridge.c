@@ -190,15 +190,13 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 
 #ifdef __USE_VLAN__
        	int vlanid = rtnl_neigh_get_vlan(neigh);
-	if (vlanid < 0)
-		vlanid = 0; /* zero is our no-vlan */
 #else
-	const int vlanid = 0;
+	const int vlanid = -1;
 #endif
 	struct ether_addr *mac = ether_aton(lladdr);
 	int exists;
 	{
-		struct cache_fdb_entry* entry = get_fdb_entry((uint8_t*) mac, bridgeifname, (uint16_t) vlanid, ifidx);
+		struct cache_fdb_entry* entry = get_fdb_entry((uint8_t*) mac, bridgeifname, vlanid, ifidx);
 		exists = (entry && entry->enabled);
 		switch (type) {
 			case RTM_DELNEIGH:
@@ -212,7 +210,7 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 					assert(bridgeifname);
 					eprintf(DEBUG_GENERAL | DEBUG_VERBOSE, "add neigh %s on %s on %s vlan %d", lladdr, (bridgeifname ? bridgeifname : "NULL"), (linkifname ? linkifname : "NULL"), vlanid);
 					if (!entry)
-						add_fdb_entry((uint8_t*) mac, bridgeifname, (uint16_t) vlanid, 1, ifidx);
+						add_fdb_entry((uint8_t*) mac, bridgeifname, vlanid, 1, ifidx);
 					else
 						entry->enabled = 1;
 				}
@@ -221,7 +219,7 @@ void obj_input_neigh(int type, struct rtnl_neigh *neigh)
 	}
 
 	if (type == RTM_NEWNEIGH && !exists) {
-		lease_lookup_by_mac(bridgeifname, (uint16_t) vlanid, (uint8_t*) mac, updated_lease);
+		lease_lookup_by_mac(bridgeifname, vlanid, (uint8_t*) mac, updated_lease);
 	}
 out:
 	if (link)

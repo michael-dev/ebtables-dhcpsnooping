@@ -40,7 +40,7 @@
 static struct cache_fdb_entry* globalFdbCache = NULL;
 static int globalFdbCacheSize = 0;
 
-struct cache_fdb_entry* get_fdb_entry(const uint8_t* mac, const char* bridge, const uint16_t vlanid, const unsigned int portidx)
+struct cache_fdb_entry* get_fdb_entry(const uint8_t* mac, const char* bridge, const int vlanid, const unsigned int portidx)
 {
 	struct cache_fdb_entry* entry = globalFdbCache;
 	while (entry != NULL) {
@@ -55,11 +55,11 @@ struct cache_fdb_entry* get_fdb_entry(const uint8_t* mac, const char* bridge, co
 	return entry;
 }
 
-void* get_fdb_entry_wrp(const uint8_t* mac, const char* bridge, const uint16_t vlanid) {
+void* get_fdb_entry_wrp(const uint8_t* mac, const char* bridge, const int vlanid) {
 	return get_fdb_entry(mac, bridge, vlanid, 0);
 }
 
-struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, const uint16_t vlanid, uint8_t enabled, unsigned int portidx) {
+struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, const int vlanid, uint8_t enabled, unsigned int portidx) {
 	if (globalFdbCacheSize > FDBMAXSIZE) return NULL;
 	struct cache_fdb_entry* entry = malloc(sizeof(struct cache_fdb_entry));
 	if (!entry) {

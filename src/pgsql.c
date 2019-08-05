@@ -161,7 +161,7 @@ void pgsql_remove_old_leases_from_db(void *ctx)
 	pgsql_query_errprint(sql);
 }
 
-void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
+void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const int vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	/* only write DHCP ACK packet changes back */
 	if (reason != UPDATED_LEASE_FROM_DHCP)
@@ -177,7 +177,7 @@ void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 	eprintf(DEBUG_VERBOSE, "sql: update lease: MAC: %s IP: %s VLAN: %s expiresIn: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, expiresAt - now);
 
 	char vlan[255];
-	if (vlanid)
+	if (vlanid >= 0)
 		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid);
 	else
 		snprintf(vlan, sizeof(vlan), "%s", ifname);
@@ -195,7 +195,7 @@ void pgsql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 	pgsql_query_errprint(sql);
 }
 
-int pgsql_update_lease_from_sql(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
+int pgsql_update_lease_from_sql(const char* ifname, const int vlanid, const uint8_t* mac, const struct in_addr* ip, uint32_t* expiresAt)
 {
 	PGresult * res;
 	char sql[1024];
@@ -205,7 +205,7 @@ int pgsql_update_lease_from_sql(const char* ifname, const uint16_t vlanid, const
 	if (!pgsql_connected())
 		return -1;
 
-	if (vlanid)
+	if (vlanid >= 0)
 		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid);
 	else
 		snprintf(vlan, sizeof(vlan), "%s", ifname);
@@ -238,7 +238,7 @@ int pgsql_update_lease_from_sql(const char* ifname, const uint16_t vlanid, const
 	return 0;
 }
 
-void pgsql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint16_t vlanid, const uint8_t* mac, lease_cb cb)
+void pgsql_iterate_lease_for_ifname_and_mac(const char* ifname, const int vlanid, const uint8_t* mac, lease_cb cb)
 {
 	/* query sql for lease and add local rules*/
 	PGresult * res;
@@ -251,7 +251,7 @@ void pgsql_iterate_lease_for_ifname_and_mac(const char* ifname, const uint16_t v
 		return;
 	eprintf(DEBUG_NEIGH, "query pgsql\n");
 
-	if (vlanid)
+	if (vlanid >= 0)
 		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid);
 	else
 		snprintf(vlan, sizeof(vlan), "%s", ifname);

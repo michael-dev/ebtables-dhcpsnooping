@@ -43,7 +43,7 @@
 struct cache_ack_entry
 {
 	char bridge[IF_NAMESIZE];
-	uint16_t vlanid;
+	int vlanid;
 	uint8_t mac[ETH_ALEN];
 	struct in_addr ip;
 	uint32_t expiresAt;
@@ -66,7 +66,7 @@ void update_ack_timeout(struct cache_ack_entry* entry) {
        cb_add_timer(timeout + 1, 0, entry, check_expired_ack);
 }
 
-struct cache_ack_entry* get_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid)
+struct cache_ack_entry* get_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const int vlanid)
 {
 	struct cache_ack_entry* entry = globalAckCache;
 	while (entry != NULL) {
@@ -81,7 +81,7 @@ struct cache_ack_entry* get_ack_entry(const struct in_addr* yip, const uint8_t* 
 	return entry;
 }
 
-struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt)
+struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const int vlanid, const uint32_t expiresAt)
 {
 	struct cache_ack_entry* entry = malloc(sizeof(struct cache_ack_entry));
 	if (!entry) {
@@ -99,7 +99,7 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 	return entry;
 }
 
-void dhcp_update_ack(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
+void dhcp_update_ack(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const int vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason)
 {
 	int modified = 0;
 	uint32_t now = reltime();

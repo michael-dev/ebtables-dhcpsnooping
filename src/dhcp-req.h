@@ -20,5 +20,5 @@
 
 #include <stdint.h>
 
-void add_req_entry_if_not_found(const uint8_t* mac, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt);
+void add_req_entry_if_not_found(const uint8_t* mac, const char* ifname, const int vlanid, const uint32_t expiresAt);
 

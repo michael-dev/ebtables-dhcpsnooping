@@ -52,7 +52,7 @@
 /**
  * This method handles IPv4 packets.
  */
-void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, const char* ifname, const uint16_t vlanid)
+void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, const char* ifname, const int vlanid)
 {
 	const int c_dhcp_req = 1;
 	const int c_dhcp_ack = 2;
@@ -182,15 +182,15 @@ void dhcpv4_got_packet(const int ptype, const u_char *packet, const int len, con
 	}
 
 	if (dhcpmsgtype == LIBNET_DHCP_MSGACK) {
-		eprintf(DEBUG_DHCP| DEBUG_VERBOSE,  "DHCP ACK MAC: %s IP: %s BRIDGE: %s VLAN: %d LeaseTime: %d" , ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, (int) vlanid, leaseTime);
+		eprintf(DEBUG_DHCP| DEBUG_VERBOSE,  "DHCP ACK MAC: %s IP: %s BRIDGE: %s VLAN: %d LeaseTime: %d" , ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(yip), ifname, vlanid, leaseTime);
 		if (tmp_yip == 0) {
 			eprintf(DEBUG_DHCP, "DHCP ACK IP 0.0.0.0 ignored");
 			return;
 		}
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGREQUEST) {
-		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REQ MAC: %s BRIDGE: %s VLAN: %d" , ether_ntoa_z((struct ether_addr *)mac), ifname, (int) vlanid);
+		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REQ MAC: %s BRIDGE: %s VLAN: %d" , ether_ntoa_z((struct ether_addr *)mac), ifname, vlanid);
 	} else if (dhcpmsgtype == LIBNET_DHCP_MSGRELEASE) {
-		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REL MAC: %s BRIDGE: %s VLAN: %d" , ether_ntoa_z((struct ether_addr *)mac), ifname, (int) vlanid);
+		eprintf(DEBUG_DHCP | DEBUG_VERBOSE,  "DHCP REL MAC: %s BRIDGE: %s VLAN: %d" , ether_ntoa_z((struct ether_addr *)mac), ifname, vlanid);
 	} else {
 		eprintf(DEBUG_DHCP,  "ERROR - dhcp_mode is invalid");
 		return;

@@ -35,7 +35,7 @@
 struct cache_req_entry
 {
 	char bridge[IF_NAMESIZE];
-	uint16_t vlanid;
+	int vlanid;
 	uint8_t mac[ETH_ALEN];
 	uint32_t expiresAt;
 	struct cache_req_entry* next;
@@ -43,7 +43,7 @@ struct cache_req_entry
 
 static struct cache_req_entry* globalReqCache = NULL;
 
-struct cache_req_entry* get_req_entry(const uint8_t* mac, const char* ifname, const uint16_t vlanid)
+struct cache_req_entry* get_req_entry(const uint8_t* mac, const char* ifname, const int vlanid)
 {
 	struct cache_req_entry* entry = globalReqCache;
 	while (entry != NULL) {
@@ -57,11 +57,11 @@ struct cache_req_entry* get_req_entry(const uint8_t* mac, const char* ifname, co
 	return entry;
 }
 
-void* get_req_entry_wrp(const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
+void* get_req_entry_wrp(const uint8_t* mac, const char* ifname, const int vlanid) {
 	return get_req_entry(mac, ifname, vlanid);
 }
 
-struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt)
+struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, const int vlanid, const uint32_t expiresAt)
 {
 	struct cache_req_entry* entry = malloc(sizeof(struct cache_req_entry));
 	if (!entry) {
@@ -78,7 +78,7 @@ struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, co
 	return entry;
 }
 
-void add_req_entry_if_not_found(const uint8_t* mac, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt)
+void add_req_entry_if_not_found(const uint8_t* mac, const char* ifname, const int vlanid, const uint32_t expiresAt)
 {
 	struct cache_req_entry* entry = get_req_entry(mac, ifname, vlanid);
 	if (entry == NULL) {
