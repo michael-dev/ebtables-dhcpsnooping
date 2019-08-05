@@ -21,7 +21,6 @@
 #include "config.h"
 #include "dhcp.h"
 #include "dhcp-ack.h"
-#include "ebtables.h"
 #include "signal.h"
 #include "debug.h"
 #include "event.h"
@@ -111,7 +110,7 @@ void dhcp_update_ack(const uint8_t* mac, const struct in_addr* yip, const char* 
 		entry->expiresAt = expiresAt;
 	} else if (expiresAt > now) {
 		entry = add_ack_entry(yip, mac, ifname, vlanid, expiresAt);
-		ebtables_add(yip, mac, ifname, vlanid);
+		lease_start_stop(ifname, vlanid, mac, yip, 1);
 		modified = 1;
 	}
 	if (modified) {
@@ -155,7 +154,7 @@ void check_expired_ack(void *ctx)
 
 		eprintf(DEBUG_DHCP, "check for expired dhcp ack after update cb: mac: %s ip: %s bridge: %s vlan: %d expiresIn: %d", ether_ntoa_z((struct ether_addr *)entry->mac), inet_ntoa(entry->ip), entry->bridge, (int) entry->vlanid, expiresAt - now);
 		if (expiresAt < now) {
-			ebtables_del(&entry->ip, entry->mac, entry->bridge, entry->vlanid);
+			lease_start_stop(entry->bridge, entry->vlanid, entry->mac, &entry->ip, 0);
 			if (prev == NULL) {
 				globalAckCache = entry->next;
 			} else {

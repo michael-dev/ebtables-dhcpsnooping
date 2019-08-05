@@ -54,6 +54,13 @@ struct lease_lookup_by_mac_entry
 };
 static struct lease_lookup_by_mac_entry* globalLookupLeaseHook = NULL;
 
+struct lease_start_stop_entry
+{
+	lease_start_stop_cb cb;
+	struct lease_start_stop_entry *next;
+};
+static struct lease_start_stop_entry* globalStartStopLeaseHook = NULL;
+
 void add_is_local_hook(is_local_cb cb)
 {
 	struct is_local_entry *entry = malloc(sizeof(struct is_local_entry));
@@ -150,3 +157,22 @@ void lease_lookup_by_mac(const char* ifname, const uint16_t vlanid, const uint8_
 	}
 }
 
+void add_lease_start_stop_hook(lease_start_stop_cb cb)
+{
+	struct lease_start_stop_entry *entry = malloc(sizeof(struct lease_start_stop_entry));
+	if (!entry) {
+		eprintf(DEBUG_ERROR, "out of memory at %s:%d in %s", __FILE__, __LINE__, __PRETTY_FUNCTION__);
+		exit(1);
+	}
+	memset(entry, 0, sizeof(struct lease_start_stop_entry));
+	entry->cb = cb;
+	entry->next = globalStartStopLeaseHook;
+	globalStartStopLeaseHook = entry;
+}
+
+void lease_start_stop(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, const int start)
+{
+	for (struct lease_start_stop_entry *entry = globalStartStopLeaseHook; entry; entry = entry->next) {
+		entry->cb(ifname, vlanid, mac, ip, start);
+	}
+}

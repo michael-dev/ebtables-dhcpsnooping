@@ -20,6 +20,8 @@
 
 #include "config.h"
 #include "debug.h"
+#include "cmdline.h"
+#include "dhcp.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,7 +40,9 @@
 #define EBTABLES "ebtables"
 #endif
 
-void ebtables_run(const char* cmd) {
+static int disabled = 0;
+
+static void ebtables_run(const char* cmd) {
 	eprintf(DEBUG_GENERAL, "run \"%s\"", cmd);
 	if (system(cmd)) {
 		eprintf(DEBUG_ERROR, "cmd \"%s\" failed", cmd);
@@ -79,7 +83,7 @@ static void ebtables_add_vlan(const struct in_addr* yip, const uint8_t* mac, con
 	ebtables_run(cmd);
 }
 
-void ebtables_add(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
+static void ebtables_add(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
 	assert(yip); assert(mac); assert(ifname);
 	eprintf(DEBUG_VERBOSE, "add ebtables rule: MAC: %s IP: %s BRIDGE: %s VLAN: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, (int) vlanid);
 	if (vlanid == 0)
@@ -120,11 +124,34 @@ static void ebtables_del_vlan(const struct in_addr* yip, const uint8_t* mac, con
 	ebtables_run(cmd);
 }
 
-void ebtables_del(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
+static void ebtables_del(const struct in_addr* yip, const uint8_t* mac, const char* ifname, const uint16_t vlanid) {
 	assert(yip); assert(mac); assert(ifname);
 	eprintf(DEBUG_VERBOSE, "remove ebtables rule: MAC: %s IP: %s BRIDGE: %s VLAN: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), ifname, (int) vlanid);
 	if (vlanid == 0)
 		ebtables_del_novlan(yip, mac, ifname);
 	else
 		ebtables_del_vlan(yip, mac, ifname, vlanid);
+}
+
+static void ebtables_do(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, const int start)
+{
+	if (disabled)
+		return;
+
+	if (start)
+		ebtables_add(ip, mac, ifname, vlanid);
+	else
+		ebtables_del(ip, mac, ifname, vlanid);
+}
+
+static void disable_ebtables(int c)
+{
+	disabled = 1;
+}
+
+static __attribute__((constructor)) void ebtables_init()
+{
+        static struct option de_option = {"disable-ebtables", no_argument, 0, 0};
+        add_option_cb(de_option, disable_ebtables);
+	add_lease_start_stop_hook(ebtables_do);
 }

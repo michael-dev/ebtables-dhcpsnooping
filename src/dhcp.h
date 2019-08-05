@@ -30,6 +30,7 @@ typedef int (*update_lease_cb)(const char* ifname, const uint16_t vlanid, const 
 typedef void (*updated_lease_cb)(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason);
 typedef void (*lease_cb)(const uint8_t* mac, const struct in_addr* yip, const char* ifname, const uint16_t vlanid, const uint32_t expiresAt, const enum t_lease_update_src reason);
 typedef void (*lease_lookup_by_mac_cb)(const char* ifname, const uint16_t vlanid, const uint8_t* mac, lease_cb cb);
+typedef void (*lease_start_stop_cb)(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, const int start);
 
 /* check if mac is present locally (i.e. on wifi port) */
 void add_is_local_hook(is_local_cb cb);
@@ -49,4 +50,7 @@ void updated_lease(const uint8_t* mac, const struct in_addr* yip, const char* if
 void add_lease_lookup_by_mac(lease_lookup_by_mac_cb cb);
 /* try to find the lease externally and call the given callback with the data found. */
 void lease_lookup_by_mac(const char* ifname, const uint16_t vlanid, const uint8_t* mac, lease_cb cb);
+
+void add_lease_start_stop_hook(lease_start_stop_cb cb);
+void lease_start_stop(const char* ifname, const uint16_t vlanid, const uint8_t* mac, const struct in_addr* ip, const int start);
 
