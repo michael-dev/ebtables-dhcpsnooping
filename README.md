@@ -139,26 +139,26 @@ WLAN=wlan*
 
 nft flush ruleset bridge
 
-nft add table bridge filter;
-nft add set bridge filter leases {type ifname . vlan_id . ether_addr . ipv4_addr  \; }
-nft add set bridge filter gateway {type ether_addr \; elements = $GWMAC \; }
-nft add set bridge filter dhcpserver {type ether_addr \; elements = $DHCPMAC \; }
-nft add chain bridge filter FORWARD { type filter hook forward priority filter; policy accept; }
-nft add chain bridge filter dhcpsnooping { policy drop; }
+nft add table bridge filter\;
+nft add set bridge filter leases {type ifname . ether_addr . vlan_id . ipv4_addr  \; }
+nft add set bridge filter gw {type ether_addr \; elements = { "$GWMAC" } \; }
+nft add set bridge filter dhcpserver {type ether_addr \; elements = { "$DHCPMAC" } \; }
+nft add chain bridge filter FORWARD { type filter hook forward priority filter\; policy accept\; }
+nft add chain bridge filter dhcpsnooping
 
-nft add table bridge nat;
+nft add table bridge nat\;
 nft add map bridge nat leases {type ifname . vlan_id . ipv4_addr : ether_addr \; }
-nft add chain bridge nat PREROUTING { type nat hook prerouting priority dstnat; policy accept; }
+nft add chain bridge nat PREROUTING { type filter hook prerouting priority dstnat\; policy accept\; }
 
 -- multicast ARP rewrite to unicast
-nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" vlan type arp arp operation request daddr & 01:00:00:00:00:00 == 01:00:00:00:00:00 dnat meta ibrname . vlan id . arp daddr ip @leases
+nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" ether daddr & 01:00:00:00:00:00 == 01:00:00:00:00:00 vlan type arp arp operation request dnat meta ibrname . vlan id . arp daddr ip map \@leases
 
 -- protect DHCP MAC and GW MAC - they not in WLAN
-nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" ether saddr @gateway drop
-nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" ether saddr @dhcpserver drop
+nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" ether saddr \@gw drop
+nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" ether saddr \@dhcpserver drop
 
 -- filter multicast ARP not rewritten before going out to WLAN
-nft add rule bridge filter FORWARD oifname "$WLAN" meta ibrname "$BRIDGE" vlan proto arp daddr & 01:00:00:00:00:00 == 01:00:00:00:00:00 drop
+nft add rule bridge filter FORWARD oifname \@wlanif meta ibrname "brvlan" ether daddr "&" 01:00:00:00:00:00 == 01:00:00:00:00:00 vlan type arp drop
 
 -- IP source address filter
 nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip jump dhcpsnooping
@@ -168,11 +168,12 @@ nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan t
 nft add rule bridge filter dhcpsnooping ether type vlan ip saddr 0.0.0.0 return
 nft add rule bridge filter dhcpsnooping ether type vlan arp saddr ip 0.0.0.0 return
 
-nft add rule bridge filter dhcpsnooping ether type vlan meta ibrname . vlan id . ether saddr . ip saddr @leases return
+nft add rule bridge filter dhcpsnooping ether type vlan meta ibrname . vlan id . ether saddr . ip saddr \@leases return
+nft add rule bridge filter dhcpsnooping counter drop
 
 -- = send DHCPv4 packets to dhcpsnoopingd =
 nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip udp sport 68 udp dport 67 log group 1 accept
-nft add rule bridge filter FORWARD meta ibrname "$BRIDGE" ether saddr @dhcpserver vlan type ip udp sport 67 udp dport 68 log group 1 accept
+nft add rule bridge filter FORWARD meta ibrname "$BRIDGE" ether saddr \@dhcpserver vlan type ip udp sport 67 udp dport 68 log group 1 accept
 nft add rule bridge filter FORWARD meta ibrname "$BRIDGE" vlan type ip udp sport 67 udp dport 68 counter drop
 ```
 
