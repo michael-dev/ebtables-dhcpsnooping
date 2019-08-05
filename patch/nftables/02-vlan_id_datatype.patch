@@ -1,0 +1,52 @@
+Index: nftables-0.9.1/include/datatype.h
+===================================================================
+--- nftables-0.9.1.orig/include/datatype.h
++++ nftables-0.9.1/include/datatype.h
+@@ -90,6 +90,7 @@ enum datatypes {
+ 	TYPE_CT_EVENTBIT,
+ 	TYPE_IFNAME,
+ 	TYPE_IGMP_TYPE,
++	TYPE_VLANID,
+ 	__TYPE_MAX
+ };
+ #define TYPE_MAX		(__TYPE_MAX - 1)
+@@ -256,6 +257,7 @@ extern const struct datatype icmpx_code_
+ extern const struct datatype igmp_type_type;
+ extern const struct datatype time_type;
+ extern const struct datatype boolean_type;
++extern const struct datatype vlanid_type;
+ 
+ void inet_service_type_print(const struct expr *expr, struct output_ctx *octx);
+ 
+Index: nftables-0.9.1/src/datatype.c
+===================================================================
+--- nftables-0.9.1.orig/src/datatype.c
++++ nftables-0.9.1/src/datatype.c
+@@ -71,6 +71,7 @@ static const struct datatype *datatypes[
+ 	[TYPE_BOOLEAN]		= &boolean_type,
+ 	[TYPE_IFNAME]		= &ifname_type,
+ 	[TYPE_IGMP_TYPE]	= &igmp_type_type,
++	[TYPE_VLANID]		= &vlanid_type,
+ };
+ 
+ const struct datatype *datatype_lookup(enum datatypes type)
+Index: nftables-0.9.1/src/proto.c
+===================================================================
+--- nftables-0.9.1.orig/src/proto.c
++++ nftables-0.9.1/src/proto.c
+@@ -906,6 +906,15 @@ const struct proto_desc proto_arp = {
+ 
+ #include <net/ethernet.h>
+ 
++const struct datatype vlanid_type = {
++	.type		= TYPE_VLANID,
++	.name		= "vlan_id",
++	.desc		= "802.1Q VLAN ID",
++	.byteorder	= BYTEORDER_BIG_ENDIAN,
++	.size		= 12,
++	.basetype	= &integer_type,
++};
++
+ #define VLANHDR_BITFIELD(__name, __offset, __len) \
+ 	HDR_BITFIELD(__name, &integer_type, __offset, __len)
+ #define VLANHDR_TYPE(__name, __type, __member) \

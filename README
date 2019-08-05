@@ -113,6 +113,8 @@ This needs to be enabled using --enable-vlan with configure.
 ebtables example
 ----------------
 
+ebtables can be disabled by using --disable-ebtables.
+
 Packets will flow:
   PREROUTING FILTER
     -> br_forward
@@ -171,4 +173,67 @@ ebtables -A FORWARD -s $GWMAC --logical-in $BRIDGE \
 ebtables -A FORWARD --logical-in $BRIDGE \
          --proto ipv6 --ip6-protocol ipv6-icmp --ip6-icmp-type router-advertisement -j DROP
 
+
+nftables example
+----------------
+
+See patch/nftables for the required patches to nft or use --nftables-legacy argument.
+nftables can be disabled by using --disable-nftables.
+
+GWMAC=00:00:00:00:00:01
+DHCPMAC=00:00:00:00:00:02
+BRIDGE=br*
+WLAN=wlan*
+
+nft flush ruleset bridge
+
+nft add table bridge filter;
+nft add set bridge filter leases {type ifname . vlan_id . ether_addr . ipv4_addr  \; }
+nft add set bridge filter gateway {type ether_addr \; elements = $GWMAC \; }
+nft add set bridge filter dhcpserver {type ether_addr \; elements = $DHCPMAC \; }
+nft add chain bridge filter FORWARD { type filter hook forward priority filter; policy accept; }
+nft add chain bridge filter dhcpsnooping { policy drop; }
+
+nft add table bridge nat;
+nft add map bridge nat leases {type ifname . vlan_id . ipv4_addr : ether_addr \; }
+nft add chain bridge nat PREROUTING { type nat hook prerouting priority dstnat; policy accept; }
+
+-- multicast ARP rewrite to unicast
+--- for non-legacy mode
+nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" vlan type arp arp operation request daddr & 01:00:00:00:00:00 == 01:00:00:00:00:00 dnat meta ibrname . vlan id . arp daddr ip @leases
+
+--- for legacy mode
+nft add chain bridge nat dhcpsnooping { policy return; }
+nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" vlan type arp arp operation request daddr & 01:00:00:00:00:00 == 01:00:00:00:00:00 jump dhcpsnooping # multicast arp request
+
+-- protect DHCP MAC and GW MAC - they not in WLAN
+nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" ether saddr @gateway drop
+nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" ether saddr @dhcpserver drop
+
+-- filter multicast ARP not rewritten before going out to WLAN
+nft add rule bridge filter FORWARD oifname "$WLAN" meta ibrname "$BRIDGE" vlan proto arp daddr & 01:00:00:00:00:00 == 01:00:00:00:00:00 drop
+
+-- IP source address filter
+nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip jump dhcpsnooping
+nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip6 jump dhcpsnooping
+nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type arp jump dhcpsnooping
+
+nft add rule bridge filter dhcpsnooping ether type vlan ip6 saddr fe80::/64 return
+nft add rule bridge filter dhcpsnooping ether type vlan ip saddr 0.0.0.0 return
+nft add rule bridge filter dhcpsnooping ether type vlan arp saddr ip 0.0.0.0 return
+
+nft add rule bridge filter dhcpsnooping ether type vlan meta ibrname . vlan id . ether saddr . ip saddr @leases return
+
+-- = send DHCPv4 and DHCPv6 and RA packets to dhcpsnoopingd =
+-- DHCPv4
+nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip udp sport 68 udp dport 67 log group 1 accept
+nft add rule bridge filter FORWARD meta ibrname "$BRIDGE" ether saddr @dhcpserver vlan type ip udp sport 67 udp dport 68 log group 1 accept
+nft add rule bridge filter FORWARD meta ibrname "$BRIDGE" vlan type ip udp sport 67 udp dport 68 counter drop
+-- DHCPv6
+nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip6 udp sport 546 udp dport 547 log group 1 accept
+nft add rule bridge filter FORWARD meta ibrname "$BRIDGE" ether saddr @dhcpserver vlan type ip6 udp sport 547 udp dport 546 log group 1 accept
+nft add rule bridge filter FORWARD meta ibrname "$BRIDGE" vlan type ip6 udp sport 547 udp dport 546 counter drop
+-- RA
+nft rule add bridge filter FORWARD meta ibrname "$BRIDGE" ether saddr @gateway vlan type ip6 icmpv6 type router-advertisment log 1 accept
+nft rule add bridge filter FORWARD meta ibrname "$BRIDGE" vlan type ip6 icmpv6 type router-advertisment counter drop
 

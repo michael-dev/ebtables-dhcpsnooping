@@ -1,0 +1,60 @@
+Subject: [PATCH] Fix dumping vlan rules
+From: "M. Braun" <michael-dev@fami-braun.de>
+
+Given the following bridge rules:
+1. ip protocol icmp accept
+2. ether type vlan vlan type ip ip protocol icmp accept
+
+The are currently both dumped by "nft list ruleset" as
+1. ip protocol icmp accept
+2. ip protocol icmp accept
+
+Though, the netlink code actually is different
+
+bridge filter FORWARD 4
+  [ payload load 2b @ link header + 12 => reg 1 ]
+  [ cmp eq reg 1 0x00000008 ]
+  [ payload load 1b @ network header + 9 => reg 1 ]
+  [ cmp eq reg 1 0x00000001 ]
+  [ immediate reg 0 accept ]
+
+bridge filter FORWARD 5 4
+  [ payload load 2b @ link header + 12 => reg 1 ]
+  [ cmp eq reg 1 0x00000081 ]
+  [ payload load 2b @ link header + 16 => reg 1 ]
+  [ cmp eq reg 1 0x00000008 ]
+  [ payload load 1b @ network header + 9 => reg 1 ]
+  [ cmp eq reg 1 0x00000001 ]
+  [ immediate reg 0 accept ]
+
+Fix this by avoiding the removal of all vlan statements
+in the given example.
+
+Signed-off-by: Michael Braun <michael-dev@fami-braun.de>
+---
+ src/payload.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+Index: nftables-0.9.1/src/payload.c
+===================================================================
+--- nftables-0.9.1.orig/src/payload.c
++++ nftables-0.9.1/src/payload.c
+@@ -506,6 +506,18 @@ static bool payload_may_dependency_kill(
+ 		     dep->left->payload.desc == &proto_ip6) &&
+ 		    expr->payload.base == PROTO_BASE_TRANSPORT_HDR)
+ 			return false;
++		/* Do not kill
++		 *  ether type vlan and vlan type ip and ip protocol icmp
++		 * into
++		 *  ip protocol icmp
++		 * as this lacks ether type vlan.
++		 * More generally speaking, do not kill protocol type
++		 * for stacked protocols if we only have protcol type matches.
++		 */
++		if (dep->left->etype == EXPR_PAYLOAD && dep->op == OP_EQ &&
++		    expr->flags & EXPR_F_PROTOCOL &&
++		    expr->payload.base == dep->left->payload.base)
++			return false;
+ 		break;
+ 	}
+ 

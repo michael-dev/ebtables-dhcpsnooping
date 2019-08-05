@@ -111,6 +111,18 @@ AC_ARG_ENABLE(vlan, [  --enable-vlan          enable vlan support], [
 	fi
 ])
 
+AC_ARG_ENABLE(ebtables, [  --enable-ebtables          enable ebtables support], [
+	if test "x$enableval" != "xno"; then
+		AC_DEFINE([__USE_EBTABLES__], , [Enable ebtables support])
+	fi
+])
+
+AC_ARG_ENABLE(nftables, [  --enable-nftables          enable nftables support], [
+	if test "x$enableval" != "xno"; then
+		AC_DEFINE([__USE_NFTABLES__], , [Enable nftables support])
+	fi
+])
+
 # Checks for header files.
 AC_HEADER_STDC
 
