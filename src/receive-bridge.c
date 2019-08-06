@@ -362,13 +362,19 @@ static __attribute__((constructor)) void bridge_init()
 	}
 	nl_socket_disable_seq_check(nf_sock_route);
 	nl_socket_modify_cb(nf_sock_route, NL_CB_VALID, NL_CB_CUSTOM, event_input_route, NULL);
+	nl_socket_disable_auto_ack(nf_sock_route);
 
 	if (nl_connect(nf_sock_route, NETLINK_ROUTE) < 0) {
 		eprintf(DEBUG_ERROR, "cannot connect II: %s", strerror(errno));
 		exit(254);
 	}
 
-        if (nl_rtgen_request(nf_sock_route, RTM_GETNEIGH, AF_BRIDGE, NLM_F_DUMP) < 0) {
+	/* nl_rtgen_request(nf_sock_route, RTM_GETNEIGH, AF_BRIDGE, NLM_F_DUMP)
+	 * produces an undersized payload and thus gets discarded by the kernel.
+	 */
+	struct ndmsg msg = { 0 };
+	msg.ndm_family = AF_BRIDGE;
+	if (nl_send_simple(nf_sock_route, RTM_GETNEIGH, NLM_F_DUMP, &msg, sizeof(msg)) < 0) {
 		eprintf(DEBUG_ERROR, "cannot request fdb dump: %s", strerror(errno));
 		exit(254);
 	}
