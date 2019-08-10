@@ -70,4 +70,7 @@ void parse_cmdline(int argc, char *argv[])
 		}
 		option_cbs[option_index](c);
 	}
+
+	free(long_options);
+	free(option_cbs);
 }
