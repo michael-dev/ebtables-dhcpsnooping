@@ -316,20 +316,10 @@ void set_roamifprefix(int c) {
 	add_roamifprefix(optarg);
 }
 
-static __attribute__((constructor)) void bridge_init()
-{
-	add_roamifprefix(ROAMIFPREFIX);
-
-	{
-		struct option long_option = {"roamifprefix", required_argument, 0, 0};
-		add_option_cb(long_option, set_roamifprefix);
-	}
-
-	eprintf(DEBUG_ERROR,  "Listen to ROUTE->NEIGH notifications");
-	/* connect to netlink route to get notified of bridges learning new addresses */
+static void bridge_start_listen() {
 	struct nl_sock *nf_sock_route;
 	nf_sock_route = nl_socket_alloc();
-	if (nf_sock_route < 0) {
+	if (!nf_sock_route) {
 		eprintf(DEBUG_ERROR, "cannot alloc socket (II): %s", strerror(errno));
 		exit(254);
 	}
@@ -353,10 +343,12 @@ static __attribute__((constructor)) void bridge_init()
 
 	int rffd = nl_socket_get_fd(nf_sock_route);
 	cb_add_handle(rffd, nf_sock_route, bridge_receive);
+}
 
-	/* connect to netlink route to get notified of all known bridge addresses */
+static void bridge_dump_neigh() {
+	struct nl_sock *nf_sock_route;
 	nf_sock_route = nl_socket_alloc();
-	if (nf_sock_route < 0) {
+	if (!nf_sock_route) {
 		eprintf(DEBUG_ERROR, "cannot alloc socket (II): %s", strerror(errno));
 		exit(254);
 	}
@@ -379,8 +371,25 @@ static __attribute__((constructor)) void bridge_init()
 		exit(254);
 	}
 
-	rffd = nl_socket_get_fd(nf_sock_route);
+	int rffd = nl_socket_get_fd(nf_sock_route);
 	cb_add_handle(rffd, nf_sock_route, bridge_receive);
+}
+
+static __attribute__((constructor)) void bridge_init()
+{
+	add_roamifprefix(ROAMIFPREFIX);
+
+	{
+		struct option long_option = {"roamifprefix", required_argument, 0, 0};
+		add_option_cb(long_option, set_roamifprefix);
+	}
+
+	eprintf(DEBUG_ERROR,  "Listen to ROUTE->NEIGH notifications");
+	/* connect to netlink route to get notified of bridges learning new addresses */
+	bridge_start_listen();
+
+	/* connect to netlink route to get notified of all known bridge addresses */
+	bridge_dump_neigh();
 }
 
 #endif
