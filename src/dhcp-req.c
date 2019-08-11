@@ -70,7 +70,7 @@ struct cache_req_entry* add_req_entry(const uint8_t* mac, const char* ifname, co
 	}
 	memset(entry, 0, sizeof(struct cache_req_entry));
 	memcpy(entry->mac, mac, ETH_ALEN);
-	strncpy(entry->bridge, ifname, IF_NAMESIZE);
+	strncpy(entry->bridge, ifname, IF_NAMESIZE - 1);
 	entry->vlanid = vlanid;
 	entry->expiresAt = expiresAt;
 	entry->next = globalReqCache;

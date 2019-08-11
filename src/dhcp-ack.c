@@ -92,7 +92,7 @@ struct cache_ack_entry* add_ack_entry(const struct in_addr* yip, const uint8_t* 
 	memcpy(entry->mac, mac, ETH_ALEN);
 	memcpy(&entry->ip,yip,sizeof(struct in_addr));
 	entry->vlanid = vlanid;
-	strncpy(entry->bridge, ifname, IF_NAMESIZE);
+	strncpy(entry->bridge, ifname, IF_NAMESIZE - 1);
 	entry->expiresAt = expiresAt;
 	entry->next = globalAckCache;
 	globalAckCache = entry;

@@ -68,7 +68,7 @@ struct cache_fdb_entry* add_fdb_entry(const uint8_t* mac, const char* ifname, co
 	}
 	memset(entry, 0, sizeof(struct cache_fdb_entry));
 	memcpy(entry->mac, mac, ETH_ALEN);
-	strncpy(entry->bridge, ifname, IF_NAMESIZE);
+	strncpy(entry->bridge, ifname, IF_NAMESIZE - 1);
 	entry->vlanid = vlanid;
 	entry->enabled = enabled;
 	entry->portidx = portidx;
