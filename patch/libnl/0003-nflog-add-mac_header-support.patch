@@ -1,11 +1,17 @@
-commit fcd00602f377e04916f929caee22a2fe761bc53d
-Author: Michael Braun <michael-dev@fami-braun.de>
-Date:   Sun Aug 4 09:28:18 2019 +0200
+From acf38768ed6fa1a7cba678edb0181c7580c5eee0 Mon Sep 17 00:00:00 2001
+From: Michael Braun <michael-dev@fami-braun.de>
+Date: Sun, 4 Aug 2019 09:28:18 +0200
+Subject: [PATCH 3/6] nflog: add mac_header support
 
-    nflog: add mac_header support
+---
+ include/netlink-private/types.h     |  4 ++
+ include/netlink/netfilter/log_msg.h | 12 ++++
+ lib/netfilter/log_msg.c             | 14 +++++
+ lib/netfilter/log_msg_obj.c         | 91 ++++++++++++++++++++++++++++-
+ 4 files changed, 119 insertions(+), 2 deletions(-)
 
 diff --git a/include/netlink-private/types.h b/include/netlink-private/types.h
-index aea9ce9..da5a7c1 100644
+index 392fbb9..3e23009 100644
 --- a/include/netlink-private/types.h
 +++ b/include/netlink-private/types.h
 @@ -1015,6 +1015,10 @@ struct nfnl_log_msg {
@@ -17,10 +23,10 @@ index aea9ce9..da5a7c1 100644
 +	void *			log_msg_hwheader;
 +	int			log_msg_hwheader_len;
  	uint16_t		log_msg_vlan_tag;
+ 	uint16_t		log_msg_vlan_proto;
  };
- 
 diff --git a/include/netlink/netfilter/log_msg.h b/include/netlink/netfilter/log_msg.h
-index c0cdc1f..ae0612a 100644
+index cdbb67e..cc72ae7 100644
 --- a/include/netlink/netfilter/log_msg.h
 +++ b/include/netlink/netfilter/log_msg.h
 @@ -90,6 +90,18 @@ extern void		nfnl_log_msg_set_seq_global(struct nfnl_log_msg *, uint32_t);
@@ -39,11 +45,11 @@ index c0cdc1f..ae0612a 100644
 +extern int		nfnl_log_msg_test_hwheader(const struct nfnl_log_msg *);
 +extern const void *	nfnl_log_msg_get_hwheader(const struct nfnl_log_msg *, int *);
 +
- extern void		nfnl_log_msg_set_vlan_tag(struct nfnl_log_msg *, uint16_t);
- extern int		nfnl_log_msg_test_vlan_tag(const struct nfnl_log_msg *);
- extern uint16_t		nfnl_log_msg_get_vlan_tag(const struct nfnl_log_msg *);
+ extern void		nfnl_log_msg_set_vlan_proto(struct nfnl_log_msg *, uint16_t);
+ extern int		nfnl_log_msg_test_vlan_proto(const struct nfnl_log_msg *);
+ extern uint16_t		nfnl_log_msg_get_vlan_proto(const struct nfnl_log_msg *);
 diff --git a/lib/netfilter/log_msg.c b/lib/netfilter/log_msg.c
-index 3495436..e8b2714 100644
+index b4f6c83..59bc345 100644
 --- a/lib/netfilter/log_msg.c
 +++ b/lib/netfilter/log_msg.c
 @@ -49,6 +49,8 @@ static struct nla_policy log_msg_policy[NFULA_MAX+1] = {
@@ -52,10 +58,10 @@ index 3495436..e8b2714 100644
  	[NFULA_SEQ_GLOBAL]		= { .type = NLA_U32 },
 +	[NFULA_HWTYPE]			= { .type = NLA_U16 },
 +	[NFULA_HWLEN]			= { .type = NLA_U16 },
- 	[NFULA_VLAN_TAG]		= { .type = NLA_U16 },
+ 	[NFULA_VLAN]			= { .type = NLA_NESTED },
  };
  
-@@ -148,6 +150,18 @@ int nfnlmsg_log_msg_parse(struct nlmsghdr *nlh, struct nfnl_log_msg **result)
+@@ -176,6 +178,18 @@ int nfnlmsg_log_msg_parse(struct nlmsghdr *nlh, struct nfnl_log_msg **result)
  	if (attr)
  		nfnl_log_msg_set_seq_global(msg, ntohl(nla_get_u32(attr)));
  
@@ -71,26 +77,28 @@ index 3495436..e8b2714 100644
 +	if (attr)
 +		nfnl_log_msg_set_hwheader(msg, nla_data(attr), nla_len(attr));
 +
- 	attr = tb[NFULA_VLAN_TAG];
- 	if (attr)
- 		nfnl_log_msg_set_vlan_tag(msg, ntohs(nla_get_u16(attr)));
+ 	attr = tb[NFULA_VLAN];
+ 	if (attr) {
+ 		err = nfnlmsg_log_msg_parse_vlan(attr, msg);
 diff --git a/lib/netfilter/log_msg_obj.c b/lib/netfilter/log_msg_obj.c
-index 1b82941..82d3b15 100644
+index 9037595..9160a16 100644
 --- a/lib/netfilter/log_msg_obj.c
 +++ b/lib/netfilter/log_msg_obj.c
-@@ -33,7 +33,10 @@
+@@ -33,8 +33,11 @@
  #define LOG_MSG_ATTR_GID		(1UL << 13)
  #define LOG_MSG_ATTR_SEQ		(1UL << 14)
  #define LOG_MSG_ATTR_SEQ_GLOBAL		(1UL << 15)
--#define LOG_MSG_ATTR_VLAN_TAG		(1UL << 16)
+-#define LOG_MSG_ATTR_VLAN_PROTO		(1UL << 16)
+-#define LOG_MSG_ATTR_VLAN_TAG		(1UL << 17)
 +#define LOG_MSG_ATTR_HWTYPE		(1UL << 16)
 +#define LOG_MSG_ATTR_HWLEN		(1UL << 17)
 +#define LOG_MSG_ATTR_HWHEADER		(1UL << 18)
-+#define LOG_MSG_ATTR_VLAN_TAG		(1UL << 19)
++#define LOG_MSG_ATTR_VLAN_PROTO		(1UL << 19)
++#define LOG_MSG_ATTR_VLAN_TAG		(1UL << 20)
  /** @endcond */
  
  static void log_msg_free_data(struct nl_object *c)
-@@ -45,6 +48,7 @@ static void log_msg_free_data(struct nl_object *c)
+@@ -46,6 +49,7 @@ static void log_msg_free_data(struct nl_object *c)
  
  	free(msg->log_msg_payload);
  	free(msg->log_msg_prefix);
@@ -98,7 +106,7 @@ index 1b82941..82d3b15 100644
  }
  
  static int log_msg_clone(struct nl_object *_dst, struct nl_object *_src)
-@@ -66,6 +70,13 @@ static int log_msg_clone(struct nl_object *_dst, struct nl_object *_src)
+@@ -67,6 +71,13 @@ static int log_msg_clone(struct nl_object *_dst, struct nl_object *_src)
  			goto errout;
  	}
  
@@ -112,7 +120,7 @@ index 1b82941..82d3b15 100644
  	return 0;
  errout:
  	return err;
-@@ -167,6 +178,21 @@ static void log_msg_dump(struct nl_object *a, struct nl_dump_params *p)
+@@ -168,6 +179,21 @@ static void log_msg_dump(struct nl_object *a, struct nl_dump_params *p)
  	if (msg->ce_mask & LOG_MSG_ATTR_SEQ_GLOBAL)
  		nl_dump(p, "SEQGLOBAL=%d ", msg->log_msg_seq_global);
  
@@ -134,7 +142,7 @@ index 1b82941..82d3b15 100644
  	if (msg->ce_mask & LOG_MSG_ATTR_VLAN_TAG)
  		nl_dump(p, "VLAN=%d CFI=%d PRIO=%d",
  		        (int) nfnl_log_msg_get_vlan_id(msg),
-@@ -451,6 +477,67 @@ uint32_t nfnl_log_msg_get_seq_global(const struct nfnl_log_msg *msg)
+@@ -452,6 +478,67 @@ uint32_t nfnl_log_msg_get_seq_global(const struct nfnl_log_msg *msg)
  	return msg->log_msg_seq_global;
  }
  
@@ -199,6 +207,9 @@ index 1b82941..82d3b15 100644
 +	return msg->log_msg_hwheader;
 +}
 +
- void nfnl_log_msg_set_vlan_tag(struct nfnl_log_msg *msg, uint16_t vlan_tag)
+ void nfnl_log_msg_set_vlan_proto(struct nfnl_log_msg *msg, uint16_t vlan_proto)
  {
- 	msg->log_msg_vlan_tag = vlan_tag;
+ 	msg->log_msg_vlan_proto = vlan_proto;
+-- 
+2.20.1
+
