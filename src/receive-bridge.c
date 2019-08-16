@@ -366,7 +366,7 @@ static void bridge_dump_neigh() {
 	 */
 	struct ndmsg msg = { 0 };
 	msg.ndm_family = AF_BRIDGE;
-	if (nl_send_simple(nf_sock_route, RTM_GETNEIGH, NLM_F_DUMP, &msg, sizeof(msg)) < 0) {
+	if (nl_send_simple(nf_sock_route, RTM_GETNEIGH, NLM_F_REQUEST | NLM_F_DUMP, &msg, sizeof(msg)) < 0) {
 		eprintf(DEBUG_ERROR, "cannot request fdb dump: %s", strerror(errno));
 		exit(254);
 	}
