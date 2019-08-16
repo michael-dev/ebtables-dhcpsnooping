@@ -4,16 +4,6 @@ Travis CI:
 Coverity Scan:
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/19006/badge.svg)](https://scan.coverity.com/projects/19006)
 
-<a href="https://scan.coverity.com/projects/michael-dev-ebtables-dhcpsnooping">
-  <img alt="Coverity Scan Build Status"
-       src="https://scan.coverity.com/projects/19006/badge.svg"/>
-</a>
-
-<a href="https://scan.coverity.com/projects/michael-dev-ebtables-dhcpsnooping">
-  <img alt="Coverity Scan Build Status"
-       src="https://img.shields.io/coverity/scan/19006.svg"/>
-</a>
-
 ebtables-dhcpsnooping
 =====================
 
