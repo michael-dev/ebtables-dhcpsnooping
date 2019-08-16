@@ -237,4 +237,3 @@ nft add rule bridge filter FORWARD meta ibrname "$BRIDGE" vlan type ip6 udp spor
 -- RA
 nft rule add bridge filter FORWARD meta ibrname "$BRIDGE" ether saddr \@gw vlan type ip6 icmpv6 type router-advertisment log 1 accept
 nft rule add bridge filter FORWARD meta ibrname "$BRIDGE" vlan type ip6 icmpv6 type router-advertisment counter drop
-
