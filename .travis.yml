@@ -1,0 +1,25 @@
+language: c
+compiler:
+  - gcc
+
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "JoL/FZ8C2MHOHQVVUpvY0klVfk22S9eC/Y8e7LdNFsu7lWEj/8CIrKOCQ1vRK8NMbBfV2MlDzKqpeS9zD+Okvd53VSyaVBfy+L31+5Glt0mijo/593pk7eTAlMJQYIBzTXrg2E+kPzaJEQuHND6RJXDwLUXnDOysQVEdC+khkwE45bRaVTHNIFB9lKr9aBmHVtovwJOPsPHG8FHtj/KSSbHF/YgoaEvF2IO08wi93mO7+Z5Os81s9JiBkbP4S4Z3NG4LUbTMfgH4YVakm/yLNLAOrY8DNv12LLMs16HeHHxpP5fod164+zAO2N4XWw2WQ95d0ZKmIsrdah+eTGCSSQnefW1j++W2XG0ct8TkeqA5W/YQXZhvw2+xW8tUyynKzoPdqOWTPRbs+Z5EZ5SvNafq07U7NlKoA9aeZuBdC5f7CA+4OFVJ7gHTrBBxf8CvjdRiILqogMYmwIhKB9Rp3Jl3FrXDozgQOan0lK6cL0V4lL1S8vS0CUYtmQZsjLbe+0OXEzCGCsvuDlEQ4/KyXNjkax73c+BuX7ZygXG2wZcXhM1kVwfkwnnKjeOgH6liT5LA3WsF78mFrVJKPICfx1XnvzWWce3sQutBaNsBGnrNeHLzJF7lUziwTX9Hir71XK4f1eITJpeeppi3wyD99DGlPTjuj7JeKwvJWho+fVI="
+
+before_install:
+  - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
+addons:
+  coverity_scan:
+    project:
+      name: "michael-dev/ebtables-dhcpsnooping"
+      description: "ebtables/nftables dhcpsnooping and arp protection daemon"
+    notification_email: michael-dev@fami-braun.de
+    #build_command_prepend: "<Your build preprocessing command here>"
+    build_command: "./autoinstall.sh"
+    branch_pattern: coverity_scan
+
+script:
+  - make -j2

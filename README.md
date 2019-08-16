@@ -1,3 +1,19 @@
+Travis CI:
+[![Build Status](https://secure.travis-ci.org/michael-dev/ebtables-dhcpsnooping.png?branch=master)](http://travis-ci.org/michael-dev/ebtables-dhcpsnooping)
+
+Coverity Scan:
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/19006/badge.svg)](https://scan.coverity.com/projects/19006)
+
+<a href="https://scan.coverity.com/projects/michael-dev-ebtables-dhcpsnooping">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/19006/badge.svg"/>
+</a>
+
+<a href="https://scan.coverity.com/projects/michael-dev-ebtables-dhcpsnooping">
+  <img alt="Coverity Scan Build Status"
+       src="https://img.shields.io/coverity/scan/19006.svg"/>
+</a>
+
 ebtables-dhcpsnooping
 =====================
 
