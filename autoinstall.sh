@@ -8,6 +8,6 @@ autoconf
 autoreconf -fvi
 automake --add-missing
 #./configure --prefix=/tmp/usr --enable-pgsql --enable-roaming --enable-debug --enable-vlan --enable-ebtables --enable-nftables
-./configure --prefix=/tmp/usr --enable-pgsql --enable-roaming --enable-debug --enable-vlan --enable-ebtables --enable-nftables
+./configure --prefix=/tmp/usr --enable-pgsql --enable-roaming --enable-debug --enable-ebtables --enable-nftables
 make -j2
 
