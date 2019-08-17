@@ -268,10 +268,10 @@ void udp_receive(int udpsocket, void* ctx)
 {
 	struct sockaddr_in their_addr;
 	socklen_t addr_len = sizeof(struct sockaddr);
-	char buf[2048]; memset(buf, 0, sizeof(buf));
+	uint8_t buf[2048];
 
 	int recvlen = recvfrom(udpsocket, buf, sizeof(buf)-1 , MSG_DONTWAIT, (struct sockaddr*) &their_addr, &addr_len);
-		if (recvlen < 0) {
+	if (recvlen < 0 || recvlen > sizeof(buf)-1 ) {
 		eprintf(DEBUG_ERROR, "recvfrom udpsocket: %s", strerror(errno));
 		return;
 	}
@@ -283,8 +283,9 @@ void udp_receive(int udpsocket, void* ctx)
 		return;
 	}
 	eprintf(DEBUG_UDP,  "got packet from %s",inet_ntoa(their_addr.sin_addr));
-	eprintf(DEBUG_UDP,  "packet contains \"%s\"",buf);
-	handle_udp_message(buf, recvlen);
+	buf[recvlen] = '\0';
+	eprintf(DEBUG_UDP,  "packet contains \"%s\"", (char*) buf);
+	handle_udp_message((char*) buf, recvlen);
 }
 
 void udp_start_listen(void *ctx) {
