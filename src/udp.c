@@ -172,9 +172,9 @@ void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname
 		int broadcastEnable=1;
 		int ret=setsockopt(broadcastSock, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable));
 		if (ret < 0) {
-			broadcastSock = 0;
 			eprintf(DEBUG_ERROR, "cannot open broadcast socket: setting SO_BROADCAST failed: %s", strerror(errno));
 			close(broadcastSock);
+			broadcastSock = 0;
 			return;
 		}
 	}
