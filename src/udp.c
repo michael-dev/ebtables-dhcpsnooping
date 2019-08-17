@@ -268,7 +268,7 @@ void udp_receive(int udpsocket, void* ctx)
 {
 	struct sockaddr_in their_addr;
 	socklen_t addr_len = sizeof(struct sockaddr);
-	char buf[2048]; memset(&buf, 0, sizeof(buf));
+	char buf[2048]; memset(buf, 0, sizeof(buf));
 
 	int recvlen = recvfrom(udpsocket, buf, sizeof(buf)-1 , MSG_DONTWAIT, (struct sockaddr*) &their_addr, &addr_len);
 		if (recvlen < 0) {
