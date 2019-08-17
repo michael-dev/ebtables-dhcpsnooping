@@ -135,7 +135,7 @@ static void nflog_start_listen(void *ctx) {
 	eprintf(DEBUG_ERROR, "listen to NFLOG packets for group %d", groupId);
 
 	nf_sock_nflog = nl_socket_alloc();
-	if (nf_sock_nflog < 0) {
+	if (nf_sock_nflog == NULL) {
 		eprintf(DEBUG_ERROR, "cannot alloc socket: %s", strerror(errno));
 		exit(254);
 	}
