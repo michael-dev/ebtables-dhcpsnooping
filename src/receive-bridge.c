@@ -104,7 +104,7 @@ int get_link_by_idx(int ifidx, struct rtnl_link **link)
 	static struct nl_sock *sock = NULL;
 	if (!sock) {
 		sock = nl_socket_alloc();
-		if (sock == NULL 0) {
+		if (sock == NULL) {
 			eprintf(DEBUG_ERROR, "cannot alloc socket (III): %s", strerror(errno));
 			sock = NULL;
 			return 1;
