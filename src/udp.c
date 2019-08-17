@@ -192,7 +192,7 @@ void sendLease(const uint8_t* mac, const struct in_addr* yip, const char* ifname
 
 void handle_udp_message(char* buf, int recvlen)
 {
-	/* msg := <ifname>\t<mac>\t<ip>\t<expire> */
+	/* msg := <ifname>\t<mac>\t<ip>\t<expire>\t<hostname> */
 	/* split message by \t */
 	char* pos = buf;
 	char* ifname = pos;
