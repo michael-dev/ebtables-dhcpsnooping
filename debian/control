@@ -2,9 +2,9 @@ Source: dhcpsnoopingd-fem
 Section: unknown
 Priority: extra
 Maintainer: Michael Braun <michael-dev@fami-braun.de>
-Build-Depends: debhelper (>= 8.0.0), autotools-dev, libpq-dev, libnet-dev
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, libpq-dev, libnet-dev, libnl-3-dev, libnl-cli-3-dev, libnl-genl-3-dev, libnl-nf-3-dev, libnl-route-3-dev
 Standards-Version: 3.9.3
-Homepage: <insert the upstream URL, if relevant>
+Homepage: https://github.com/michael-dev/ebtables-dhcpsnooping
 #Vcs-Git: git://git.debian.org/collab-maint/dhcpsnoopingd-fem.git
 #Vcs-Browser: http://git.debian.org/?p=collab-maint/dhcpsnoopingd-fem.git;a=summary
 
