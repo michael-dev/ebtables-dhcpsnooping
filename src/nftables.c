@@ -38,10 +38,10 @@
 #define CHAINNAME "dhcpsnooping"
 #endif
 #ifndef SETNAME
-#define SETNAME "leases"
+#define SETNAME "filter leases"
 #endif
 #ifndef MAPNAME
-#define MAPNAME "leases"
+#define MAPNAME "nat leases"
 #endif
 #ifndef NFTABLES
 #define NFTABLES "nft"
@@ -81,10 +81,10 @@ static void nftables_novlan(const int add, const struct in_addr* ip, const uint8
 			 add ? "insert" : "delete", inet_ntoa(*ip), ifname, ether_ntoa_z((struct ether_addr *)mac));
 		nftables_run(cmd);
 	} else {
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge filter " SETNAME " { \"%s\" . %s . %s }",
+		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge " SETNAME " { \"%s\" . %s . %s }",
 			 add ? "add" : "delete", ifname, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip));
 		nftables_run(cmd);
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge nat " MAPNAME " { \"%s\" . %s : %s }",
+		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge " MAPNAME " { \"%s\" . %s : %s }",
 			 add ? "add" : "delete", ifname, inet_ntoa(*ip), ether_ntoa_z((struct ether_addr *)mac));
 		nftables_run(cmd);
 	}
@@ -107,10 +107,10 @@ static void nftables_vlan(const int add, const struct in_addr* ip, const uint8_t
 			 add ? "insert" : "delete", vlanid, inet_ntoa(*ip), ifname, ether_ntoa_z((struct ether_addr *)mac));
 		nftables_run(cmd);
 	} else {
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge filter " SETNAME " { \"%s\" . %s . %d . %s }",
+		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge " SETNAME " { \"%s\" . %s . %d . %s }",
 			 add ? "add" : "delete", ifname, ether_ntoa_z((struct ether_addr *)mac), vlanid, inet_ntoa(*ip));
 		nftables_run(cmd);
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge nat " MAPNAME " { \"%s\" . %d . %s : %s }",
+		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge " MAPNAME " { \"%s\" . %d . %s : %s }",
 			 add ? "add" : "delete", ifname, vlanid, inet_ntoa(*ip), ether_ntoa_z((struct ether_addr *)mac));
 		nftables_run(cmd);
 	}
