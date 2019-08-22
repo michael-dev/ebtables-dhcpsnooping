@@ -34,14 +34,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef CHAINNAME
-#define CHAINNAME "dhcpsnooping"
+#ifndef CHAINNAME1
+#define CHAINNAME1 "dhcpsnooping"
+#endif
+#ifndef CHAINNAME2
+#define CHAINNAME2 "dhcpsnooping"
+#endif
+#ifndef TBL1
+#define TBL1 "filter"
+#endif
+#ifndef TBL2
+#define TBL2 "nat"
 #endif
 #ifndef SETNAME
-#define SETNAME "filter leases"
+#define SETNAME "leases"
 #endif
 #ifndef MAPNAME
-#define MAPNAME "nat leases"
+#define MAPNAME "leases"
 #endif
 #ifndef NFTABLES
 #define NFTABLES "nft"
@@ -52,6 +61,57 @@
 static int disabled = 0;
 static int legacy = 0;
 static int dry = 0;
+
+static const char *nftcmd = NFTABLES;
+static const char *chain1 = CHAINNAME1;
+static const char *chain2 = CHAINNAME2;
+static const char *tbl1 = TBL1;
+static const char *tbl2 = TBL2;
+static const char *setname = SETNAME;
+static const char *mapname = MAPNAME;
+
+enum {
+	CFG_NFTCMD,
+	CFG_CHAIN1,
+	CFG_CHAIN2,
+	CFG_TBL1,
+	CFG_TBL2,
+	CFG_SET,
+	CFG_MAP
+};
+
+static void set_nftables(int c)
+{
+
+	if (!optarg) {
+		eprintf(DEBUG_ERROR, "missing arg");
+		exit(254);
+	}
+
+	switch (c) {
+	case CFG_NFTCMD:
+		nftcmd = optarg;
+		break;
+	case CFG_CHAIN1:
+		chain1 = optarg;
+		break;
+	case CFG_CHAIN2:
+		chain2 = optarg;
+		break;
+	case CFG_TBL1:
+		tbl1 = optarg;
+		break;
+	case CFG_TBL2:
+		tbl2 = optarg;
+		break;
+	case CFG_SET:
+		setname = optarg;
+		break;
+	case CFG_MAP:
+		mapname = optarg;
+		break;
+	};
+}
 
 static void nftables_run(const char* cmd) {
 	eprintf(DEBUG_GENERAL, "run \"%s\"", cmd);
@@ -71,21 +131,21 @@ static void nftables_novlan(const int add, const struct in_addr* ip, const uint8
 		/* this needs to use insert (add rule to beginning) because non-base chains cannot have a policy (default-rule)
 		 * so we have a drop rule in the end of the chain and do want to insert before not after that
 		 */
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s rule bridge filter " CHAINNAME "ether saddr %s ip saddr %s meta ibrname \"%s\" return",
-			 add ? "insert" : "delete", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname);
+		snprintf(cmd, sizeof(cmd),"%s %s rule bridge %s %s ether saddr %s ip saddr %s meta ibrname \"%s\" return",
+			 nftcmd, add ? "insert" : "delete", tbl1, chain1, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname);
 		nftables_run(cmd);
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s rule bridge filter " CHAINNAME "ether saddr %s arp saddr ip %s meta ibrname \"%s\" return",
-			 add ? "insert" : "delete", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname);
+		snprintf(cmd, sizeof(cmd), "%s %s rule bridge %s %s ether saddr %s arp saddr ip %s meta ibrname \"%s\" return",
+			 nftcmd, add ? "insert" : "delete", tbl1, chain1, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname);
 		nftables_run(cmd);
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s rule bridge nat " CHAINNAME "arp daddr ip %s meta ibrname %s dnat %s return",
-			 add ? "insert" : "delete", inet_ntoa(*ip), ifname, ether_ntoa_z((struct ether_addr *)mac));
+		snprintf(cmd, sizeof(cmd), "%s %s rule bridge %s %s arp daddr ip %s meta ibrname %s dnat %s return",
+			 nftcmd, add ? "insert" : "delete", tbl2, chain2, inet_ntoa(*ip), ifname, ether_ntoa_z((struct ether_addr *)mac));
 		nftables_run(cmd);
 	} else {
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge " SETNAME " { \"%s\" . %s . %s }",
-			 add ? "add" : "delete", ifname, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip));
+		snprintf(cmd, sizeof(cmd), "%s %s element bridge %s %s { \"%s\" . %s . %s }",
+			 nftcmd, add ? "add" : "delete", tbl1, setname, ifname, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip));
 		nftables_run(cmd);
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge " MAPNAME " { \"%s\" . %s : %s }",
-			 add ? "add" : "delete", ifname, inet_ntoa(*ip), ether_ntoa_z((struct ether_addr *)mac));
+		snprintf(cmd, sizeof(cmd), "%s %s element bridge %s %s { \"%s\" . %s : %s }",
+			 nftcmd, add ? "add" : "delete", tbl2, mapname, ifname, inet_ntoa(*ip), ether_ntoa_z((struct ether_addr *)mac));
 		nftables_run(cmd);
 	}
 }
@@ -97,21 +157,21 @@ static void nftables_vlan(const int add, const struct in_addr* ip, const uint8_t
 		/* this needs to use insert (add rule to beginning) because non-base chains cannot have a policy (default-rule)
 		 * so we have a drop rule in the end of the chain and do want to insert before not after that
 		 */
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s rule bridge filter " CHAINNAME "ether saddr %s vlan id %d ip saddr %s meta ibrname \"%s\" return",
-			 add ? "insert" : "delete", ether_ntoa_z((struct ether_addr *)mac), vlanid, inet_ntoa(*ip), ifname);
+		snprintf(cmd, sizeof(cmd), "%s %s rule bridge %s %s ether saddr %s vlan id %d ip saddr %s meta ibrname \"%s\" return",
+			 nftcmd, add ? "insert" : "delete", tbl1, chain1, ether_ntoa_z((struct ether_addr *)mac), vlanid, inet_ntoa(*ip), ifname);
 		nftables_run(cmd);
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s rule bridge filter " CHAINNAME "ether saddr %s vlan id %d arp saddr ip %s meta ibrname \"%s\" return",
-			 add ? "insert" : "delete", ether_ntoa_z((struct ether_addr *)mac), vlanid, inet_ntoa(*ip), ifname);
+		snprintf(cmd, sizeof(cmd), "%s %s rule bridge %s %s ether saddr %s vlan id %d arp saddr ip %s meta ibrname \"%s\" return",
+			 nftcmd, add ? "insert" : "delete", tbl1, chain1, ether_ntoa_z((struct ether_addr *)mac), vlanid, inet_ntoa(*ip), ifname);
 		nftables_run(cmd);
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s rule bridge nat " CHAINNAME "vlan id %d arp daddr ip %s meta ibrname %s dnat %s return",
-			 add ? "insert" : "delete", vlanid, inet_ntoa(*ip), ifname, ether_ntoa_z((struct ether_addr *)mac));
+		snprintf(cmd, sizeof(cmd), "%s %s rule bridge %s %s vlan id %d arp daddr ip %s meta ibrname %s dnat %s return",
+			 nftcmd, add ? "insert" : "delete", tbl2, chain2, vlanid, inet_ntoa(*ip), ifname, ether_ntoa_z((struct ether_addr *)mac));
 		nftables_run(cmd);
 	} else {
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge " SETNAME " { \"%s\" . %s . %d . %s }",
-			 add ? "add" : "delete", ifname, ether_ntoa_z((struct ether_addr *)mac), vlanid, inet_ntoa(*ip));
+		snprintf(cmd, sizeof(cmd), "%s %s element bridge %s %s { \"%s\" . %s . %d . %s }",
+			 nftcmd, add ? "add" : "delete", tbl1, setname, ifname, ether_ntoa_z((struct ether_addr *)mac), vlanid, inet_ntoa(*ip));
 		nftables_run(cmd);
-		snprintf(cmd, sizeof(cmd), NFTABLES " %s element bridge " MAPNAME " { \"%s\" . %d . %s : %s }",
-			 add ? "add" : "delete", ifname, vlanid, inet_ntoa(*ip), ether_ntoa_z((struct ether_addr *)mac));
+		snprintf(cmd, sizeof(cmd), "%s %s element bridge %s %s { \"%s\" . %d . %s : %s }",
+			 nftcmd, add ? "add" : "delete", tbl2, mapname, ifname, vlanid, inet_ntoa(*ip), ether_ntoa_z((struct ether_addr *)mac));
 		nftables_run(cmd);
 	}
 }
@@ -155,6 +215,20 @@ static __attribute__((constructor)) void nftables_init()
         add_option_cb(le_option, enable_nftables_legacy);
         static struct option dry_option = {"dry-nftables", no_argument, 0, 0};
         add_option_cb(dry_option, dry_nftables);
+	struct option CFG_NFTCMD_option = {"nft-cmd", required_argument, 0, CFG_NFTCMD };
+	add_option_cb(CFG_NFTCMD_option, set_nftables);
+	struct option CFG_CHAIN1_option = {"nft-chain1", required_argument, 0, CFG_CHAIN1 };
+	add_option_cb(CFG_CHAIN1_option, set_nftables);
+	struct option CFG_CHAIN2_option = {"net-chain2", required_argument, 0, CFG_CHAIN2 };
+	add_option_cb(CFG_CHAIN2_option, set_nftables);
+	struct option CFG_TBL1_option = {"nft-tbl1", required_argument, 0, CFG_TBL1 };
+	add_option_cb(CFG_TBL1_option, set_nftables);
+	struct option CFG_TBL2_option = {"nft-tbl2", required_argument, 0, CFG_TBL2 };
+	add_option_cb(CFG_TBL2_option, set_nftables);
+	struct option CFG_SET_option = {"nft-setname", required_argument, 0, CFG_SET };
+	add_option_cb(CFG_SET_option, set_nftables);
+	struct option CFG_MAP_option = {"nft-mapname", required_argument, 0, CFG_MAP };
+	add_option_cb(CFG_MAP_option, set_nftables);
 	add_lease_start_stop_hook(nftables_do);
 }
 
