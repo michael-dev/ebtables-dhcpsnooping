@@ -219,7 +219,7 @@ static __attribute__((constructor)) void nftables_init()
 	add_option_cb(CFG_NFTCMD_option, set_nftables);
 	struct option CFG_CHAIN1_option = {"nft-chain1", required_argument, 0, CFG_CHAIN1 };
 	add_option_cb(CFG_CHAIN1_option, set_nftables);
-	struct option CFG_CHAIN2_option = {"net-chain2", required_argument, 0, CFG_CHAIN2 };
+	struct option CFG_CHAIN2_option = {"nft-chain2", required_argument, 0, CFG_CHAIN2 };
 	add_option_cb(CFG_CHAIN2_option, set_nftables);
 	struct option CFG_TBL1_option = {"nft-tbl1", required_argument, 0, CFG_TBL1 };
 	add_option_cb(CFG_TBL1_option, set_nftables);
