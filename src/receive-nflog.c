@@ -98,7 +98,7 @@ static int event_input_nflog(struct nl_msg *msg, void *arg)
 		int len = nla_len(attr);
 		memset(buf, 0, sizeof(buf));
 		int offset = 0;
-		for (int i = 0; i < len; i++)
+		for (int i = 0; i < len && offset < sizeof(buf); i++)
 			offset += snprintf(buf + offset, sizeof(buf) - offset, (i > 0 ? ":%02hhx" : "%02hhx"), data[i]);
 		eprintf(DEBUG_NFLOG,	"HWHEADER %s", buf);
 
