@@ -18,6 +18,9 @@
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
+#ifndef ETABLES_DHCPSNOOPING_TIMER
+#define ETABLES_DHCPSNOOPING_TIMER
+
 #include <stdint.h>
 
 #define PRUNE_INTERVAL 300
@@ -28,3 +31,4 @@ void cb_add_timer(int timeout, int repeat, void* ctx, timer_cb cb);
 void cb_del_timer(void* ctx, timer_cb cb);
 uint32_t reltime();
 
+#endif

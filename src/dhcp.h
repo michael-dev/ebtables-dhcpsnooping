@@ -18,6 +18,8 @@
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
+#ifndef ETABLES_DHCPSNOOPING_DHCP
+#define ETABLES_DHCPSNOOPING_DHCP
 #include <stdint.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -54,3 +56,4 @@ void lease_lookup_by_mac(const char* ifname, const int vlanid, const uint8_t* ma
 void add_lease_start_stop_hook(lease_start_stop_cb cb);
 void lease_start_stop(const char* ifname, const int vlanid, const uint8_t* mac, const struct in_addr* ip, const int start);
 
+#endif

@@ -18,8 +18,13 @@
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
+#ifndef ETABLES_DHCPSNOOPING_CMDLINE
+#define ETABLES_DHCPSNOOPING_CMDLINE
+
 #include <getopt.h>
 
 typedef void (*option_cb)(int c);
 void add_option_cb(struct option opt, option_cb cb);
 void parse_cmdline();
+
+#endif

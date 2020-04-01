@@ -18,7 +18,10 @@
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
+#ifndef ETABLES_DHCPSNOOPING_DHCP_REQ
+#define ETABLES_DHCPSNOOPING_DHCP_REQ
 #include <stdint.h>
 
 void add_req_entry_if_not_found(const uint8_t* mac, const char* ifname, const int vlanid, const uint32_t expiresAt);
 
+#endif
