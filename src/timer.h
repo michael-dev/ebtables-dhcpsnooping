@@ -18,8 +18,8 @@
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
-#ifndef ETABLES_DHCPSNOOPING_TIMER
-#define ETABLES_DHCPSNOOPING_TIMER
+#ifndef EBTABLES_DHCPSNOOPING_TIMER
+#define EBTABLES_DHCPSNOOPING_TIMER
 
 #include <stdint.h>
 

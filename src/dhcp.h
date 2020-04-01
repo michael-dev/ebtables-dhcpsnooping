@@ -18,8 +18,8 @@
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
-#ifndef ETABLES_DHCPSNOOPING_DHCP
-#define ETABLES_DHCPSNOOPING_DHCP
+#ifndef EBTABLES_DHCPSNOOPING_DHCP
+#define EBTABLES_DHCPSNOOPING_DHCP
 #include <stdint.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

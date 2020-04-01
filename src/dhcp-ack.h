@@ -18,6 +18,6 @@
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
-#ifndef ETABLES_DHCPSNOOPING_DHCP_ACK
-#define ETABLES_DHCPSNOOPING_DHCP_ACK
+#ifndef EBTABLES_DHCPSNOOPING_DHCP_ACK
+#define EBTABLES_DHCPSNOOPING_DHCP_ACK
 #endif

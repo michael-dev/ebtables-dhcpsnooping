@@ -18,8 +18,8 @@
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
-#ifndef ETABLES_DHCPSNOOPING_CMDLINE
-#define ETABLES_DHCPSNOOPING_CMDLINE
+#ifndef EBTABLES_DHCPSNOOPING_CMDLINE
+#define EBTABLES_DHCPSNOOPING_CMDLINE
 
 #include <getopt.h>
 

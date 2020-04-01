@@ -17,8 +17,8 @@
  *
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
-#ifndef ETABLES_DHCPSNOOPING_CMDLINE
-#define ETABLES_DHCPSNOOPING_CMDLINE
+#ifndef EBTABLES_DHCPSNOOPING_DEBUG
+#define EBTABLES_DHCPSNOOPING_DEBUG
 
 #define DEBUG_ERROR     1
 #define DEBUG_GENERAL   2

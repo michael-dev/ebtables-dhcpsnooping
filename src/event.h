@@ -18,8 +18,8 @@
  *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
  */
 
-#ifndef ETABLES_DHCPSNOOPING_EVENT
-#define ETABLES_DHCPSNOOPING_EVENT
+#ifndef EBTABLES_DHCPSNOOPING_EVENT
+#define EBTABLES_DHCPSNOOPING_EVENT
 #include <stdint.h>
 
 typedef void (*packet_cb) (const int ptype, const uint8_t *packet, const int len, const char* ifname, const int vlanid);
