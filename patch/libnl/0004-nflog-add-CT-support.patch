@@ -13,8 +13,6 @@ Subject: [PATCH 4/6] nflog: add CT support
  lib/netfilter/log_msg_obj.c         | 50 +++++++++++++++++
  7 files changed, 145 insertions(+), 24 deletions(-)
 
-diff --git a/include/netlink-private/types.h b/include/netlink-private/types.h
-index 3e23009..0231c91 100644
 --- a/include/netlink-private/types.h
 +++ b/include/netlink-private/types.h
 @@ -1021,6 +1021,8 @@ struct nfnl_log_msg {
@@ -26,8 +24,6 @@ index 3e23009..0231c91 100644
  };
  
  struct nfnl_queue {
-diff --git a/include/netlink/netfilter/ct.h b/include/netlink/netfilter/ct.h
-index ef5d035..09cf66c 100644
 --- a/include/netlink/netfilter/ct.h
 +++ b/include/netlink/netfilter/ct.h
 @@ -18,6 +18,7 @@
@@ -38,7 +34,7 @@ index ef5d035..09cf66c 100644
  
  #ifdef __cplusplus
  extern "C" {
-@@ -37,6 +38,7 @@ extern int	nfnl_ct_alloc_cache(struct nl_sock *, struct nl_cache **);
+@@ -37,6 +38,7 @@ extern int	nfnl_ct_alloc_cache(struct nl
  
  extern int	nfnlmsg_ct_group(struct nlmsghdr *);
  extern int	nfnlmsg_ct_parse(struct nlmsghdr *, struct nfnl_ct **);
@@ -46,8 +42,6 @@ index ef5d035..09cf66c 100644
  
  extern void	nfnl_ct_get(struct nfnl_ct *);
  extern void	nfnl_ct_put(struct nfnl_ct *);
-diff --git a/include/netlink/netfilter/log_msg.h b/include/netlink/netfilter/log_msg.h
-index cc72ae7..cb70714 100644
 --- a/include/netlink/netfilter/log_msg.h
 +++ b/include/netlink/netfilter/log_msg.h
 @@ -23,6 +23,7 @@ extern "C" {
@@ -58,7 +52,7 @@ index cc72ae7..cb70714 100644
  
  extern struct nl_object_ops log_msg_obj_ops;
  
-@@ -112,6 +113,14 @@ extern uint16_t		nfnl_log_msg_get_vlan_id(const struct nfnl_log_msg *);
+@@ -112,6 +113,14 @@ extern uint16_t		nfnl_log_msg_get_vlan_i
  extern uint16_t		nfnl_log_msg_get_vlan_cfi(const struct nfnl_log_msg *);
  extern uint16_t		nfnl_log_msg_get_vlan_prio(const struct nfnl_log_msg *);
  
@@ -73,11 +67,9 @@ index cc72ae7..cb70714 100644
  #ifdef __cplusplus
  }
  #endif
-diff --git a/lib/netfilter/ct.c b/lib/netfilter/ct.c
-index 1b29cf6..09a701d 100644
 --- a/lib/netfilter/ct.c
 +++ b/lib/netfilter/ct.c
-@@ -314,40 +314,25 @@ static int ct_parse_timestamp(struct nfnl_ct *ct, struct nlattr *attr)
+@@ -315,40 +315,25 @@ static int ct_parse_timestamp(struct nfn
  	return 0;
  }
  
@@ -122,7 +114,7 @@ index 1b29cf6..09a701d 100644
  	}
  
  	if (tb[CTA_STATUS])
-@@ -366,24 +351,80 @@ int nfnlmsg_ct_parse(struct nlmsghdr *nlh, struct nfnl_ct **result)
+@@ -367,24 +352,80 @@ int nfnlmsg_ct_parse(struct nlmsghdr *nl
  	if (tb[CTA_COUNTERS_ORIG]) {
  		err = ct_parse_counters(ct, 0, tb[CTA_COUNTERS_ORIG]);
  		if (err < 0)
@@ -176,7 +168,7 @@ index 1b29cf6..09a701d 100644
 +	nfnl_ct_put(ct);
 +	return err;
 +}
- 
++
 +int nfnlmsg_ct_parse_nested(struct nlattr *attr, struct nfnl_ct **result)
 +{
 +	struct nfnl_ct *ct;
@@ -200,17 +192,15 @@ index 1b29cf6..09a701d 100644
 +	err = _nfnlmsg_ct_parse(tb, ct);
 +	if (err < 0)
 +		goto errout;
-+
+ 
 +	*result = ct;
 +	return 0;
  errout:
  	nfnl_ct_put(ct);
  	return err;
-diff --git a/lib/netfilter/ct_obj.c b/lib/netfilter/ct_obj.c
-index 0cc87be..fc282ed 100644
 --- a/lib/netfilter/ct_obj.c
 +++ b/lib/netfilter/ct_obj.c
-@@ -220,8 +220,9 @@ static void ct_dump_details(struct nl_object *a, struct nl_dump_params *p)
+@@ -221,8 +221,9 @@ static void ct_dump_details(struct nl_ob
  	ct_dump_line(a, p);
  
  	nl_dump(p, "    id 0x%x ", ct->ct_id);
@@ -222,11 +212,9 @@ index 0cc87be..fc282ed 100644
  
  	if (nfnl_ct_test_use(ct))
  		nl_dump(p, "refcnt %u ", nfnl_ct_get_use(ct));
-diff --git a/lib/netfilter/log_msg.c b/lib/netfilter/log_msg.c
-index 59bc345..e1808c3 100644
 --- a/lib/netfilter/log_msg.c
 +++ b/lib/netfilter/log_msg.c
-@@ -52,6 +52,8 @@ static struct nla_policy log_msg_policy[NFULA_MAX+1] = {
+@@ -53,6 +53,8 @@ static struct nla_policy log_msg_policy[
  	[NFULA_HWTYPE]			= { .type = NLA_U16 },
  	[NFULA_HWLEN]			= { .type = NLA_U16 },
  	[NFULA_VLAN]			= { .type = NLA_NESTED },
@@ -235,7 +223,7 @@ index 59bc345..e1808c3 100644
  };
  
  static struct nla_policy log_msg_vlan_policy[NFULA_VLAN_MAX+1] = {
-@@ -197,6 +199,20 @@ int nfnlmsg_log_msg_parse(struct nlmsghdr *nlh, struct nfnl_log_msg **result)
+@@ -198,6 +200,20 @@ int nfnlmsg_log_msg_parse(struct nlmsghd
  			goto errout;
  	}
  
@@ -256,11 +244,9 @@ index 59bc345..e1808c3 100644
  	*result = msg;
  	return 0;
  
-diff --git a/lib/netfilter/log_msg_obj.c b/lib/netfilter/log_msg_obj.c
-index 9160a16..8c666a5 100644
 --- a/lib/netfilter/log_msg_obj.c
 +++ b/lib/netfilter/log_msg_obj.c
-@@ -38,6 +38,8 @@
+@@ -39,6 +39,8 @@
  #define LOG_MSG_ATTR_HWHEADER		(1UL << 18)
  #define LOG_MSG_ATTR_VLAN_PROTO		(1UL << 19)
  #define LOG_MSG_ATTR_VLAN_TAG		(1UL << 20)
@@ -269,7 +255,7 @@ index 9160a16..8c666a5 100644
  /** @endcond */
  
  static void log_msg_free_data(struct nl_object *c)
-@@ -50,6 +52,8 @@ static void log_msg_free_data(struct nl_object *c)
+@@ -51,6 +53,8 @@ static void log_msg_free_data(struct nl_
  	free(msg->log_msg_payload);
  	free(msg->log_msg_prefix);
  	free(msg->log_msg_hwheader);
@@ -278,7 +264,7 @@ index 9160a16..8c666a5 100644
  }
  
  static int log_msg_clone(struct nl_object *_dst, struct nl_object *_src)
-@@ -78,6 +82,14 @@ static int log_msg_clone(struct nl_object *_dst, struct nl_object *_src)
+@@ -79,6 +83,14 @@ static int log_msg_clone(struct nl_objec
  			goto errout;
  	}
  
@@ -293,7 +279,7 @@ index 9160a16..8c666a5 100644
  	return 0;
  errout:
  	return err;
-@@ -200,8 +212,14 @@ static void log_msg_dump(struct nl_object *a, struct nl_dump_params *p)
+@@ -201,8 +213,14 @@ static void log_msg_dump(struct nl_objec
  		        (int) nfnl_log_msg_get_vlan_cfi(msg),
  		        (int) nfnl_log_msg_get_vlan_prio(msg));
  
@@ -308,7 +294,7 @@ index 9160a16..8c666a5 100644
  	if (link_cache)
  		nl_cache_put(link_cache);
  }
-@@ -586,6 +604,38 @@ uint16_t nfnl_log_msg_get_vlan_prio(const struct nfnl_log_msg *msg)
+@@ -587,6 +605,38 @@ uint16_t nfnl_log_msg_get_vlan_prio(cons
  	return (msg->log_msg_vlan_tag & 0xe000 ) >> 13;
  }
  
@@ -347,6 +333,3 @@ index 9160a16..8c666a5 100644
  /** @} */
  
  struct nl_object_ops log_msg_obj_ops = {
--- 
-2.20.1
-

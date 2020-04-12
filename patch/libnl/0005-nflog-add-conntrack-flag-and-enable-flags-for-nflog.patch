@@ -9,8 +9,6 @@ Subject: [PATCH 5/6] nflog:add conntrack flag and enable flags for nflog
  lib/netfilter/log_obj.c         | 6 ++++++
  3 files changed, 12 insertions(+)
 
-diff --git a/include/netlink/netfilter/log.h b/include/netlink/netfilter/log.h
-index e48eddf..0ea5230 100644
 --- a/include/netlink/netfilter/log.h
 +++ b/include/netlink/netfilter/log.h
 @@ -36,6 +36,7 @@ enum nfnl_log_copy_mode {
@@ -21,11 +19,9 @@ index e48eddf..0ea5230 100644
  };
  
  /* General */
-diff --git a/lib/netfilter/log.c b/lib/netfilter/log.c
-index 1bab9b6..5e179b0 100644
 --- a/lib/netfilter/log.c
 +++ b/lib/netfilter/log.c
-@@ -150,6 +150,11 @@ static int nfnl_log_build_request(const struct nfnl_log *log,
+@@ -151,6 +151,11 @@ static int nfnl_log_build_request(const
  			htonl(nfnl_log_get_queue_threshold(log))) < 0)
  		goto nla_put_failure;
  
@@ -37,11 +33,9 @@ index 1bab9b6..5e179b0 100644
  	*result = msg;
  	return 0;
  
-diff --git a/lib/netfilter/log_obj.c b/lib/netfilter/log_obj.c
-index 65985d8..d753f1c 100644
 --- a/lib/netfilter/log_obj.c
 +++ b/lib/netfilter/log_obj.c
-@@ -214,9 +214,15 @@ void nfnl_log_unset_flags(struct nfnl_log *log, unsigned int flags)
+@@ -215,9 +215,15 @@ void nfnl_log_unset_flags(struct nfnl_lo
  	log->log_flag_mask |= flags;
  }
  
@@ -57,6 +51,3 @@ index 65985d8..d753f1c 100644
  };
  
  char *nfnl_log_flags2str(unsigned int flags, char *buf, size_t len)
--- 
-2.20.1
-

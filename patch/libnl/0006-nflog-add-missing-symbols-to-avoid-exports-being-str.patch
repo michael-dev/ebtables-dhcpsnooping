@@ -8,8 +8,6 @@ Subject: [PATCH 6/6] nflog: add missing symbols to avoid exports being
  libnl-nf-3.sym | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
 
-diff --git a/libnl-nf-3.sym b/libnl-nf-3.sym
-index 504e2dd..af59bbe 100644
 --- a/libnl-nf-3.sym
 +++ b/libnl-nf-3.sym
 @@ -158,11 +158,16 @@ global:
@@ -72,6 +70,3 @@ index 504e2dd..af59bbe 100644
  	nfnl_log_pf_bind;
  	nfnl_log_pf_unbind;
  	nfnl_log_put;
--- 
-2.20.1
-
