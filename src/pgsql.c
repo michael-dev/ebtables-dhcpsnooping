@@ -287,12 +287,12 @@ out:
 	eprintf(DEBUG_NEIGH, "pgsql completed");
 }
 
-void set_pgsql_config_file(int c)
+static void set_pgsql_config_file(int c, void *arg)
 {
 	pgsql_config_file = optarg;
 }
 
-void set_pgsql_config_name(int c)
+static void set_pgsql_config_name(int c, void *arg)
 {
 	pgsql_config_name = optarg;
 }
@@ -301,12 +301,12 @@ static __attribute__((constructor)) void dhcp_pgsql_init()
 {
 	{
 		static struct option long_option = {"pgsql-config-file", required_argument, 0, 3};
-		add_option_cb(long_option, set_pgsql_config_file);
+		add_option_cb(long_option, set_pgsql_config_file, NULL);
 	}
 
 	{
 		static struct option long_option = {"pgsql-config-name", required_argument, 0, 3};
-		add_option_cb(long_option, set_pgsql_config_name);
+		add_option_cb(long_option, set_pgsql_config_name, NULL);
 	}
 
 	{

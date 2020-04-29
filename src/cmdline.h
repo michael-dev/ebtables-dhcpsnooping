@@ -23,8 +23,8 @@
 
 #include <getopt.h>
 
-typedef void (*option_cb)(int c);
-void add_option_cb(struct option opt, option_cb cb);
+typedef void (*option_cb)(int c, void *arg);
+void add_option_cb(struct option opt, option_cb cb, void *cbarg);
 void parse_cmdline();
 
 #endif

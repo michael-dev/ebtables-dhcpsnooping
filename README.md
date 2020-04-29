@@ -75,13 +75,6 @@ Linux kernel bridge comes with VLAN support, that is, you can finally configure
 tagged and untagged VLANs per bridge port.
 As DHCP is per-VLAN, dhcpsnoopingd can track DHCP and FDB state per VLAN.
 
-This currently requires kernel and libnl patches:
-  * patch/kernel:
-    * kernel-997-make-nflog-add-vlan-information.patch
-  * patch/libnl:
-    * 01-header.patch
-    * 02-nflog-vlan.patch
-
 This needs to be enabled using --enable-vlan with configure.
 
 Use case
@@ -139,7 +132,12 @@ Example nftables rules (IPv4 only) with VLAN for APs
 
 nftables can be disabled by using --disable-nftables.
 
-See patch/nftables for the required patches to nft or use --nftables-legacy argument. Then instead of sets or maps with vlan_id type, use dhcpsnooping chain also for nat prerouting arp dnat.
+See patch/nftables for the required patches to nft or use --nftables-legacy argument. Then instead of sets or maps with vlan\_id type, use dhcpsnooping chain also for nat prerouting arp dnat.
+
+It is also important to note that 
+  * packets in the bridge FORWARD chain look untagged if the outgoing port has their vid marked untagged
+  * packets in the bridge PREROUTING chain look untagged if they are received untagged and will only be marked with pvid later.
+Therefore we need to handle untagged packets using meta ibrpvid.
 
 ```
 GWMAC=00:00:00:00:00:01
@@ -149,42 +147,48 @@ WLAN=wlan*
 
 nft flush ruleset bridge
 
-nft add table bridge filter\;
-nft add set bridge filter leases {type ifname . ether_addr . vlan_id . ipv4_addr  \; }
-nft add set bridge filter gw {type ether_addr \; elements = { "$GWMAC" } \; }
-nft add set bridge filter dhcpserver {type ether_addr \; elements = { "$DHCPMAC" } \; }
-nft add chain bridge filter FORWARD { type filter hook forward priority filter\; policy accept\; }
-nft add chain bridge filter dhcpsnooping
 
 nft add table bridge nat\;
-nft add map bridge nat leases {type ifname . vlan_id . ipv4_addr : ether_addr \; }
-nft add chain bridge nat PREROUTING { type filter hook prerouting priority dstnat\; policy accept\; }
+nft add map bridge nat leases-m {typeof meta ibrname . vlan id . arp daddr ip : ether daddr \; }
+nft add set bridge nat leases-s {typeof meta ibrname . vlan id . ip saddr  \; }
+nft add set bridge nat gw {type ether\_addr \; elements = { "$GWMAC" } \; }
+nft add set bridge nat dhcpserver {type ether\_addr \; elements = { "$DHCPMAC" } \; }
+nft add chain bridge nat PREROUTING { type nat hook prerouting priority dstnat\; policy accept\; }
+nft add chain bridge nat POSTROUTING { type nat hook postrouting priority srcnat\; policy accept\; }
+nft add chain bridge nat dhcpsnooping
 
 -- multicast ARP rewrite to unicast
-nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" ether daddr & 01:00:00:00:00:00 == 01:00:00:00:00:00 vlan type arp arp operation request dnat meta ibrname . vlan id . arp daddr ip map \@leases
-
--- protect DHCP MAC and GW MAC - they not in WLAN
-nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" ether saddr \@gw drop
-nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" ether saddr \@dhcpserver drop
+nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" ether daddr & 01:00:00:00:00:00 == 01:00:00:00:00:00 vlan type arp arp operation request dnat meta ibrname . vlan id . arp daddr ip map \@leases-m
+nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" ether daddr & 01:00:00:00:00:00 == 01:00:00:00:00:00 ether type arp arp operation request dnat meta ibrname . meta ibrpvid . arp daddr ip map \@leases-m
 
 -- filter multicast ARP not rewritten before going out to WLAN
-nft add rule bridge filter FORWARD oifname \@wlanif meta ibrname "brvlan" ether daddr "&" 01:00:00:00:00:00 == 01:00:00:00:00:00 vlan type arp drop
+nft add rule bridge nat POSTROUTING oifname \@wlanif meta ibrname "brvlan" ether daddr "&" 01:00:00:00:00:00 == 01:00:00:00:00:00 vlan type arp drop
+
+-- protect DHCP MAC and GW MAC - they not in WLAN
+nft add rule bridge nat PREROUTING iifname "$WLAN" meta ibrname "$BRIDGE" ether saddr \@gw drop
+nft add rule bridge nat PREROUTING iifname "$WLAN" meta ibrname "$BRIDGE" ether saddr \@dhcpserver drop
 
 -- IP source address filter
-nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip jump dhcpsnooping
-nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip6 jump dhcpsnooping
-nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type arp jump dhcpsnooping
+nft add rule bridge nat PREROUTING iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip jump dhcpsnooping
+nft add rule bridge nat PREROUTING iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip6 jump dhcpsnooping
+nft add rule bridge nat PREROUTING iifname "$WLAN" meta ibrname "$BRIDGE" vlan type arp jump dhcpsnooping
 
-nft add rule bridge filter dhcpsnooping ether type vlan ip saddr 0.0.0.0 return
-nft add rule bridge filter dhcpsnooping ether type vlan arp saddr ip 0.0.0.0 return
+nft add rule bridge nat dhcpsnooping ether type vlan ip saddr 0.0.0.0 return
+nft add rule bridge nat dhcpsnooping ether type != vlan ip saddr 0.0.0.0 return
+nft add rule bridge nat dhcpsnooping ether type vlan arp saddr ip 0.0.0.0 return
+nft add rule bridge nat dhcpsnooping ether type != vlan arp saddr ip 0.0.0.0 return
 
-nft add rule bridge filter dhcpsnooping ether type vlan meta ibrname . vlan id . ether saddr . ip saddr \@leases return
-nft add rule bridge filter dhcpsnooping counter drop
+nft add rule bridge nat dhcpsnooping ether type vlan meta ibrname . vlan id . ether saddr . ip saddr \@leases-s return
+nft add rule bridge nat dhcpsnooping ether type != vlan meta ibrname . meta ibrpvid . ether saddr . ip saddr \@leases-s return
+nft add rule bridge nat dhcpsnooping counter drop
 
 -- = send DHCPv4 packets to dhcpsnoopingd =
-nft add rule bridge filter FORWARD iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip udp sport 68 udp dport 67 log group 1 accept
-nft add rule bridge filter FORWARD meta ibrname "$BRIDGE" ether saddr \@dhcpserver vlan type ip udp sport 67 udp dport 68 log group 1 accept
-nft add rule bridge filter FORWARD meta ibrname "$BRIDGE" vlan type ip udp sport 67 udp dport 68 counter drop
+nft add rule bridge nat PREROUTING iifname "$WLAN" meta ibrname "$BRIDGE" vlan type ip udp sport 68 udp dport 67 log group 1 accept
+nft add rule bridge nat PREROUTING iifname "$WLAN" meta ibrname "$BRIDGE" ether type ip udp sport 68 udp dport 67 log group 1 accept
+nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" ether saddr \@dhcpserver vlan type ip udp sport 67 udp dport 68 log group 1 accept
+nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" ether saddr \@dhcpserver ether type ip udp sport 67 udp dport 68 log group 1 accept
+nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" vlan type ip udp sport 67 udp dport 68 counter drop
+nft add rule bridge nat PREROUTING meta ibrname "$BRIDGE" ether type ip udp sport 67 udp dport 68 counter drop
 ```
 
 
@@ -204,6 +208,19 @@ Central Database
 The central DB is required to recover the lease when the AP, where the STA has
 received its lease, goes down but the other APs need to learn the leases of
 the now roaming STAs.
+
+Hostname and credentials get configured using a configuration file.
+
+a) MySQL
+  For MySQL backend, use client and dhcpsnooping group of
+  /etc/mysql/fembot.cnf (configurable).
+  See https://dev.mysql.com/doc/refman/5.7/en/option-files.html for details.
+
+b) PostgreSQL >= 9.5
+  For PgSQL backend, use dhcpsnooping section in /etc/pgsql/fembot.cfg
+  (configurable).
+  See https://www.postgresql.org/docs/9.6/static/libpq-pgservice.html for
+  details.
 
 Tracking locally connected STAs
 --------------------------------
@@ -254,3 +271,93 @@ TODO
 ----
 
 - Currently there is no IPv6 support, that is support for RA, ND, and DHCPv6
+
+Commandline
+===========
+
+Debugging-Options
+-----------------
+
+- --debug
+- --debug-all
+- --debug-bridge
+- --debug-dhcp
+- --debug-neigh
+- --debug-nflog
+- --debug-udp
+- --verbose
+- --bridge-dump-netlink
+
+Configuration
+-------------
+
+Database
+--------
+- --mysql-config-file <file>: Database configuration
+- --pgsql-config-file <file>: Database configuration
+- --pgsql-config-name <name>: Database configuration
+
+Roaming
+-------
+- --roamifprefix: Which network interfaces are considered for clients (e.g. wlan\*)
+- --broadcast-addr
+- --broadcast-port
+
+Netfilter
+---------
+
+- --disable-ebtables
+- --dry-ebtables
+
+- --disable-nftables
+- --dry-nftables
+- --nftables-legacy : one rule per STA or use map/set
+- --nft-cmd : path to nft command
+- --nft-tbl1 : table for set or chain1
+- --nft-chain1 : chain to filter allowed mac/ip/vlan/bridge tuples (iff legacy)
+- --nft-setname : set of allowed mac/ip/vlan/bridge tuples (unless legacy)
+- --nft-tbl2 : table for map or chain2
+- --nft-chain2 : chain to convert broadcast arp to unicast (iff legacy)
+- --nft-mapname : map to convert broadcast arp to unicast (unless legacy)
+
+- --nflog-group <id>: which netfilter log group is used to send dhcp packets to dhcpsnoopingd?
+
+- --bridge <brname>: interface name of bridge
+
+Compiletime-Options
+===================
+
+Features
+--------
+
+- --enable-roaming: enable roaming support
+- --enable-vlan: enable vlan support (detect 802.1q header and ask bridge port for pvid if untagged)
+
+Debugging
+---------
+
+- --with-rev: enable rev output
+- --enable-debug: enable debug output
+
+Netfilter interface
+-------------------
+
+- --enable-ebtables: enable ebtables support
+- --enable-nftables: enable nftables support
+- --nflog-group <groupid>: default nflog group
+
+MySQL
+-----
+
+- --enable-mysql: enable MySQL support
+- --mysql-include-path <path>
+- --mysql-lib-path <path>
+
+PostgreSQL
+----------
+
+- --enable-pgsql: enable PostgreSQL support
+- --pgsql-include-path <path>
+- --pgsql-lib <path>
+- --pgsql-lib-path <path>
+

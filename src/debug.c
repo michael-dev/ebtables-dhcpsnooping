@@ -28,7 +28,7 @@
 
 static int debug = DEBUG_ERROR;
 
-void set_debug_flag(int c) {
+void set_debug_flag(int c, void *arg) {
 	debug |= c;
 }
 
@@ -57,31 +57,35 @@ static __attribute__((constructor)) void debug_init()
 {
 	{
 		struct option long_option = {"debug", no_argument, 0, DEBUG_GENERAL};
-		add_option_cb(long_option, set_debug_flag);
+		add_option_cb(long_option, set_debug_flag, NULL);
 	}
 	{
 		struct option long_option = {"debug-udp", no_argument, 0, DEBUG_UDP};
-		add_option_cb(long_option, set_debug_flag);
+		add_option_cb(long_option, set_debug_flag, NULL);
 	}
 	{
 		struct option long_option = {"debug-nflog", no_argument, 0, DEBUG_NFLOG};
-		add_option_cb(long_option, set_debug_flag);
+		add_option_cb(long_option, set_debug_flag, NULL);
 	}
 	{
 		struct option long_option = {"debug-neigh", no_argument, 0, DEBUG_NEIGH};
-		add_option_cb(long_option, set_debug_flag);
+		add_option_cb(long_option, set_debug_flag, NULL);
 	}
 	{
 		struct option long_option = {"debug-dhcp", no_argument, 0, DEBUG_DHCP};
-		add_option_cb(long_option, set_debug_flag);
+		add_option_cb(long_option, set_debug_flag, NULL);
+	}
+	{
+		struct option long_option = {"debug-bridge", no_argument, 0, DEBUG_BRIDGE};
+		add_option_cb(long_option, set_debug_flag, NULL);
 	}
 	{
 		struct option long_option = {"debug-all",  no_argument, 0, DEBUG_ALL};
-		add_option_cb(long_option, set_debug_flag);
+		add_option_cb(long_option, set_debug_flag, NULL);
 	}
 	{
 		struct option long_option = {"verbose",  no_argument, 0, DEBUG_VERBOSE};
-		add_option_cb(long_option, set_debug_flag);
+		add_option_cb(long_option, set_debug_flag, NULL);
 	}
 }
 

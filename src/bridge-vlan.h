@@ -15,23 +15,15 @@
  *  along with ebtables-dhcpsnoopingd.
  *  If not, see <http://www.gnu.org/licenses/>.
  *
- *  (C) 2013, Michael Braun <michael-dev@fami-braun.de>
+ *  (C) 2020, Michael Braun <michael-dev@fami-braun.de>
  */
-#ifndef EBTABLES_DHCPSNOOPING_DEBUG
-#define EBTABLES_DHCPSNOOPING_DEBUG
+#ifndef EBTABLES_DHCPSNOOPING_BRIDGE_VLAN
+#define EBTABLES_DHCPSNOOPING_BRIDGE_VLAN
 
-#define DEBUG_ERROR     1
-#define DEBUG_GENERAL   2
-#define DEBUG_UDP       4
-#define DEBUG_NFLOG     8
-#define DEBUG_NEIGH    16
-#define DEBUG_DHCP     32
-#define DEBUG_VERBOSE  64
-#define DEBUG_BRIDGE  128
-#define DEBUG_ALL     255
+#ifdef __USE_VLAN__
 
-void edprint(const int level, const char* msg, const char* file, const int line, const char* fnc);
-#define eprintf(level, ...) { char syslogbuf[8192]; snprintf(syslogbuf, sizeof(syslogbuf), __VA_ARGS__); edprint(level, syslogbuf, __FILE__, __LINE__, __PRETTY_FUNCTION__); };
-int isdebug(const int level);
+int port_pvid(int ifidx, const char* ifname);
 
-#endif
+#endif /* __USE_VLAN */
+
+#endif /* EBTABLES_DHCPSNOOPING */

@@ -23,6 +23,7 @@
 #include "debug.h"
 #include "cmdline.h"
 #include "timer.h"
+#include "bridge-vlan.h"
 
 #include <sys/types.h>
 #include <net/if.h>
@@ -69,6 +70,8 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 	int vlanid = -1;
 	if (nfnl_log_msg_test_vlan_tag(msg))
 		vlanid = nfnl_log_msg_get_vlan_id(msg);
+	else
+		vlanid = port_pvid(indev, ifname);
 #else
 	const int vlanid = -1;
 #endif
@@ -118,7 +121,7 @@ static void nflog_receive(int s, void* ctx)
 	}
 }
 
-static void set_nflog_group(int c) {
+static void set_nflog_group(int c, void *arg) {
 	if (!optarg)
 		return;
 
@@ -180,7 +183,7 @@ static __attribute__((constructor)) void nflog_init()
 {
 	{
 		struct option long_option = {"nflog-group", required_argument, 0, 0};
-		add_option_cb(long_option, set_nflog_group);
+		add_option_cb(long_option, set_nflog_group, NULL);
 	}
 
 	cb_add_timer(0, 0, NULL, nflog_start_listen);

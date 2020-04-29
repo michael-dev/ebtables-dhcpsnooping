@@ -58,7 +58,7 @@ static struct in_addr networkMask;
 static uint16_t networkPort;
 static char myhostname[1024];
 
-void set_broadcast_port(int c)
+void set_broadcast_port(int c, void *arg)
 {
 	unsigned long buf;
 	char *end = NULL;
@@ -85,7 +85,7 @@ void set_broadcast_port(int c)
 	}
 }
 
-void set_broadcast_addr(int c)
+void set_broadcast_addr(int c, void *arg)
 {
 	char buf[16];
 	int rc;
@@ -322,8 +322,8 @@ static __attribute__((constructor)) void udp_init()
 {
         static struct option bcport_option = {"broadcast-port", required_argument, 0, 3};
         static struct option bcaddr_option = {"broadcast-addr", required_argument, 0, 3};
-        add_option_cb(bcport_option, set_broadcast_port);
-        add_option_cb(bcaddr_option, set_broadcast_addr);
+        add_option_cb(bcport_option, set_broadcast_port, NULL);
+        add_option_cb(bcaddr_option, set_broadcast_addr, NULL);
 
 	networkPort = NETWORKPORT;
 	inet_pton(AF_INET, NETWORKADDR, &networkAddr);

@@ -41,16 +41,16 @@
 #define CHAINNAME2 "dhcpsnooping"
 #endif
 #ifndef TBL1
-#define TBL1 "filter"
+#define TBL1 "nat"
 #endif
 #ifndef TBL2
 #define TBL2 "nat"
 #endif
 #ifndef SETNAME
-#define SETNAME "leases"
+#define SETNAME "leases-s"
 #endif
 #ifndef MAPNAME
-#define MAPNAME "leases"
+#define MAPNAME "leases-m"
 #endif
 #ifndef NFTABLES
 #define NFTABLES "nft"
@@ -80,7 +80,7 @@ enum {
 	CFG_MAP
 };
 
-static void set_nftables(int c)
+static void set_nftables(int c, void *arg)
 {
 
 	if (!optarg) {
@@ -189,12 +189,12 @@ static void nftables_do(const char* ifname, const int vlanid, const uint8_t* mac
 		nftables_vlan(start, ip, mac, ifname, vlanid);
 }
 
-static void disable_nftables(int c)
+static void disable_nftables(int c, void *arg)
 {
 	disabled = 1;
 }
 
-static void enable_nftables_legacy(int c)
+static void enable_nftables_legacy(int c, void *arg)
 {
 	/* delete rules by statement is not yet implemented by nft, but we do not have a cache here so just ignore it for now
 	 * see https://wiki.nftables.org/wiki-nftables/index.php/Simple_rule_management
@@ -202,7 +202,7 @@ static void enable_nftables_legacy(int c)
 	legacy = 1;
 }
 
-static void dry_nftables(int c)
+static void dry_nftables(int c, void *arg)
 {
 	dry = 1;
 }
@@ -210,25 +210,25 @@ static void dry_nftables(int c)
 static __attribute__((constructor)) void nftables_init()
 {
         static struct option de_option = {"disable-nftables", no_argument, 0, 0};
-        add_option_cb(de_option, disable_nftables);
+        add_option_cb(de_option, disable_nftables, NULL);
         static struct option le_option = {"nftables-legacy", no_argument, 0, 0};
-        add_option_cb(le_option, enable_nftables_legacy);
+        add_option_cb(le_option, enable_nftables_legacy, NULL);
         static struct option dry_option = {"dry-nftables", no_argument, 0, 0};
-        add_option_cb(dry_option, dry_nftables);
+        add_option_cb(dry_option, dry_nftables, NULL);
 	struct option CFG_NFTCMD_option = {"nft-cmd", required_argument, 0, CFG_NFTCMD };
-	add_option_cb(CFG_NFTCMD_option, set_nftables);
+	add_option_cb(CFG_NFTCMD_option, set_nftables, NULL);
 	struct option CFG_CHAIN1_option = {"nft-chain1", required_argument, 0, CFG_CHAIN1 };
-	add_option_cb(CFG_CHAIN1_option, set_nftables);
+	add_option_cb(CFG_CHAIN1_option, set_nftables, NULL);
 	struct option CFG_CHAIN2_option = {"nft-chain2", required_argument, 0, CFG_CHAIN2 };
-	add_option_cb(CFG_CHAIN2_option, set_nftables);
+	add_option_cb(CFG_CHAIN2_option, set_nftables, NULL);
 	struct option CFG_TBL1_option = {"nft-tbl1", required_argument, 0, CFG_TBL1 };
-	add_option_cb(CFG_TBL1_option, set_nftables);
+	add_option_cb(CFG_TBL1_option, set_nftables, NULL);
 	struct option CFG_TBL2_option = {"nft-tbl2", required_argument, 0, CFG_TBL2 };
-	add_option_cb(CFG_TBL2_option, set_nftables);
+	add_option_cb(CFG_TBL2_option, set_nftables, NULL);
 	struct option CFG_SET_option = {"nft-setname", required_argument, 0, CFG_SET };
-	add_option_cb(CFG_SET_option, set_nftables);
+	add_option_cb(CFG_SET_option, set_nftables, NULL);
 	struct option CFG_MAP_option = {"nft-mapname", required_argument, 0, CFG_MAP };
-	add_option_cb(CFG_MAP_option, set_nftables);
+	add_option_cb(CFG_MAP_option, set_nftables, NULL);
 	add_lease_start_stop_hook(nftables_do);
 }
 

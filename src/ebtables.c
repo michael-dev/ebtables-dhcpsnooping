@@ -104,12 +104,12 @@ static void ebtables_do(const char* ifname, const int vlanid, const uint8_t* mac
 		ebtables_vlan(op, ip, mac, ifname, vlanid);
 }
 
-static void disable_ebtables(int c)
+static void disable_ebtables(int c, void *arg)
 {
 	disabled = 1;
 }
 
-static void dry_ebtables(int c)
+static void dry_ebtables(int c, void *arg)
 {
 	dry = 1;
 }
@@ -117,9 +117,9 @@ static void dry_ebtables(int c)
 static __attribute__((constructor)) void ebtables_init()
 {
         static struct option de_option = {"disable-ebtables", no_argument, 0, 0};
-        add_option_cb(de_option, disable_ebtables);
+        add_option_cb(de_option, disable_ebtables, NULL);
         static struct option dry_option = {"dry-ebtables", no_argument, 0, 0};
-        add_option_cb(dry_option, dry_ebtables);
+        add_option_cb(dry_option, dry_ebtables, NULL);
 	add_lease_start_stop_hook(ebtables_do);
 }
 

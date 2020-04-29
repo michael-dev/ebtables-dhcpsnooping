@@ -60,7 +60,8 @@ struct helper2 {
 	int ifidx;
 };
 
-void fdb_del_by_ifname_and_port(struct cache_fdb_entry* entry, void* ctx) {
+static void
+fdb_del_by_ifname_and_port(struct cache_fdb_entry* entry, void* ctx) {
 	struct helper2* tmp = (struct helper2* ) ctx;
 
 	/* DELLINK does not care for VLANID */
@@ -70,7 +71,8 @@ void fdb_del_by_ifname_and_port(struct cache_fdb_entry* entry, void* ctx) {
 	entry->enabled = 0;
 }
 
-void obj_input_dellink(struct rtnl_link *link)
+static void
+obj_input_dellink(struct rtnl_link *link)
 {
 	char *ifname = rtnl_link_get_name(link);
 	unsigned int ifidx = rtnl_link_get_ifindex(link);
@@ -81,7 +83,8 @@ void obj_input_dellink(struct rtnl_link *link)
 	update_fdb(fdb_del_by_ifname_and_port, &tmp);
 }
 
-int get_lladdr(struct rtnl_neigh *neigh, char *lladdr, int size)
+static int
+get_lladdr(struct rtnl_neigh *neigh, char *lladdr, int size)
 {
 	struct nl_addr* addr = rtnl_neigh_get_lladdr(neigh);
 	if (nl_addr_get_family(addr) != AF_LLC) {
@@ -94,7 +97,8 @@ int get_lladdr(struct rtnl_neigh *neigh, char *lladdr, int size)
 	return 0;
 }
 
-int get_link_by_idx(int ifidx, struct rtnl_link **link)
+static int
+get_link_by_idx(int ifidx, struct rtnl_link **link)
 {
 	*link = NULL;
 
@@ -126,7 +130,8 @@ int get_link_by_idx(int ifidx, struct rtnl_link **link)
 	return 0;
 }
 
-void obj_input_neigh(int type, struct rtnl_neigh *neigh)
+static void
+obj_input_neigh(int type, struct rtnl_neigh *neigh)
 {
 	int family = rtnl_neigh_get_family(neigh);
 	if (family != AF_BRIDGE) {
@@ -228,7 +233,8 @@ out:
 		rtnl_link_put(bridge);
 }
 
-void obj_input_route(struct nl_object *obj, void *arg)
+static void
+obj_input_route(struct nl_object *obj, void *arg)
 {
 	if (isdebug(DEBUG_NEIGH)) {
 		char buf[4096];
@@ -253,7 +259,8 @@ void obj_input_route(struct nl_object *obj, void *arg)
 	}
 }
 
-int event_input_route(struct nl_msg *msg, void *arg)
+static int
+event_input_route(struct nl_msg *msg, void *arg)
 {
 	if (isdebug(DEBUG_NEIGH)) {
 		char buf[4096] = {0};
@@ -274,7 +281,8 @@ int event_input_route(struct nl_msg *msg, void *arg)
 	return NL_OK;
 }
 
-void bridge_receive(int s, void* ctx)
+static void
+bridge_receive(int s, void* ctx)
 {
 	struct nl_sock *nf_sock_route = (struct nl_sock *) ctx;
 	int ret;
@@ -284,7 +292,8 @@ void bridge_receive(int s, void* ctx)
 	}
 }
 
-void add_roamifprefix(char* ifname) {
+static void
+add_roamifprefix(char* ifname) {
 	char** tmp = realloc(roamIfPrefix, (numRoamIfPrefix+1) * sizeof(*roamIfPrefix));
 	if (!tmp) {
 		eprintf(DEBUG_ERROR, "%s:%d %s error parsing command line", __FILE__, __LINE__, __PRETTY_FUNCTION__);
@@ -301,7 +310,8 @@ void add_roamifprefix(char* ifname) {
 	numRoamIfPrefix++;
 }
 
-void set_roamifprefix(int c) {
+static void
+set_roamifprefix(int c, void *arg) {
 	static int called = 0;
 
 	if (!optarg)
@@ -316,7 +326,8 @@ void set_roamifprefix(int c) {
 	add_roamifprefix(optarg);
 }
 
-static void bridge_start_listen() {
+static void
+bridge_start_listen() {
 	struct nl_sock *nf_sock_route;
 	nf_sock_route = nl_socket_alloc();
 	if (!nf_sock_route) {
@@ -345,7 +356,8 @@ static void bridge_start_listen() {
 	cb_add_handle(rffd, nf_sock_route, bridge_receive);
 }
 
-static void bridge_dump_neigh() {
+static void
+bridge_dump_neigh() {
 	struct nl_sock *nf_sock_route;
 	nf_sock_route = nl_socket_alloc();
 	if (!nf_sock_route) {
@@ -375,13 +387,14 @@ static void bridge_dump_neigh() {
 	cb_add_handle(rffd, nf_sock_route, bridge_receive);
 }
 
-static __attribute__((constructor)) void bridge_init()
+static __attribute__((constructor)) void
+bridge_init()
 {
 	add_roamifprefix(ROAMIFPREFIX);
 
 	{
 		struct option long_option = {"roamifprefix", required_argument, 0, 0};
-		add_option_cb(long_option, set_roamifprefix);
+		add_option_cb(long_option, set_roamifprefix, NULL);
 	}
 
 	eprintf(DEBUG_ERROR,  "Listen to ROUTE->NEIGH notifications");
