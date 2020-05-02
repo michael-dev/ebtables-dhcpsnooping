@@ -153,8 +153,8 @@ nft add map bridge nat leases-m {typeof meta ibrname . vlan id . arp daddr ip : 
 nft add set bridge nat leases-s {typeof meta ibrname . vlan id . ip saddr  \; }
 nft add set bridge nat gw {type ether\_addr \; elements = { "$GWMAC" } \; }
 nft add set bridge nat dhcpserver {type ether\_addr \; elements = { "$DHCPMAC" } \; }
-nft add chain bridge nat PREROUTING { type nat hook prerouting priority dstnat\; policy accept\; }
-nft add chain bridge nat POSTROUTING { type nat hook postrouting priority srcnat\; policy accept\; }
+nft add chain bridge nat PREROUTING { type filter hook prerouting priority dstnat\; policy accept\; }
+nft add chain bridge nat POSTROUTING { type filter hook postrouting priority srcnat\; policy accept\; }
 nft add chain bridge nat dhcpsnooping
 
 -- multicast ARP rewrite to unicast
