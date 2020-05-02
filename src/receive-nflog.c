@@ -53,7 +53,7 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 	uint32_t  outdev = nfnl_log_msg_get_outdev(msg);
 
 	if (indev != outdev) {
-		eprintf(DEBUG_NFLOG,  "obj_input_nflog...err indev!=outdev");
+		eprintf(DEBUG_NFLOG,  "obj_input_nflog...err indev %u !=outdev %u", indev, outdev);
 		return;
 	}
 	memset(ifname,0,sizeof(ifname));
