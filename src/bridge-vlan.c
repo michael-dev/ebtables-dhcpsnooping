@@ -92,11 +92,16 @@ int
 port_pvid(int ifidx, const char *ifname) 
 {
 	struct port_info *cur;
+	eprintf(DEBUG_BRIDGE, "port: looking up %d ifname %s", ifidx, ifname);
+	for (struct port_info *i = ports; i; i = i->next) {
+		eprintf(DEBUG_BRIDGE, "  * port entry: ifidx: %d name: %s pvid: %u", i->ifidx, i->ifname, i->pvid);
+	}
 	if (_port_find(ifidx, &cur, NULL) == 0)
 		return -1;
 	if (strncmp(cur->ifname, ifname, sizeof(cur->ifname)) != 0) {
 		eprintf(DEBUG_ERROR, "port: ifidx: %d name: %s does not match %s", cur->ifidx, cur->ifname, ifname);
 	}
+	eprintf(DEBUG_BRIDGE, "port: looking up %d ifname %s -> pvid %u", ifidx, ifname, cur->pvid);
 	return cur->pvid;
 }
 
