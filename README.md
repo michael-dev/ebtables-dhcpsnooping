@@ -18,7 +18,7 @@ your local DHCP server.
 To achieve this, it manages linux ebtables rules that accept packets that match
 ip address, mac address and interface with an active DHCP lease. It will also
 listen to DHCP requests and replies using ebtables, so you can filter which
-DHCP servers should be listened too. The latter is called nflog.
+DHCP servers should be listened to. The latter is called nflog.
 
 When running on wifi access points, stations roaming between them will not
 renew their lease after each single roam. Instead, the target access point
