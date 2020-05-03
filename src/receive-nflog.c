@@ -51,14 +51,15 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 
 	uint32_t  indev = nfnl_log_msg_get_indev(msg);
 	uint32_t  outdev = nfnl_log_msg_get_outdev(msg);
+	uint32_t  dev = indev ? indev : outdev;
 
-	if (indev != outdev) {
+	if (indev != outdev && indev != 0 && outdev != 0) {
 		eprintf(DEBUG_NFLOG,  "obj_input_nflog...err indev %u !=outdev %u", indev, outdev);
 		return;
 	}
 	memset(ifname,0,sizeof(ifname));
-	if (!if_indextoname(indev, ifname)) {
-		eprintf(DEBUG_ERROR,  "obj_input_nlog: failed to fetch interface name of ifidx %d: %s (%d)", indev, strerror(errno), errno);
+	if (!if_indextoname(dev, ifname)) {
+		eprintf(DEBUG_ERROR,  "obj_input_nlog: failed to fetch interface name of ifidx %d: %s (%d)", dev, strerror(errno), errno);
 		return;
 	}
 
@@ -71,7 +72,7 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 	if (nfnl_log_msg_test_vlan_tag(msg))
 		vlanid = nfnl_log_msg_get_vlan_id(msg);
 	else
-		vlanid = port_pvid(indev, ifname);
+		vlanid = port_pvid(dev, ifname);
 #else
 	const int vlanid = -1;
 #endif
