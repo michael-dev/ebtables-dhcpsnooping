@@ -127,7 +127,7 @@ static int event_input_nflog(struct nl_msg *msg, void *arg)
 	}
 	if (nl_msg_parse(msg, &obj_input_nflog, NULL) < 0)
 		eprintf(DEBUG_NFLOG,  "<<EVENT:nflog>> Unknown message type");
-	return NL_STOP;
+	return NL_OK;
 }
 
 static void nflog_receive(int s, void* ctx)
