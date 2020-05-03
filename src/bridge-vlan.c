@@ -125,7 +125,9 @@ port_upsert(const int ifidx, const char *ifname, const int pvid)
 	struct port_info *cur;
 	if (_port_find(ifidx, &cur, NULL) == 0) {
 		cur = malloc(sizeof(*cur));
+		memset(cur, 0, sizeof(*cur));
 		cur->next = ports;
+		cur->ifidx = ifidx;
 		ports = cur;
 	}
 
