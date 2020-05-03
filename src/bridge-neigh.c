@@ -168,7 +168,7 @@ obj_input_neigh(int type, struct rtnl_neigh *neigh)
 
 		unsigned int bridgeidx = rtnl_link_get_master(link);
 		if (bridgeidx == 0) {
-			eprintf(DEBUG_ERROR, "missing bridge idx: link %s(%d) has no master", linkifname, ifidx);
+			eprintf(DEBUG_GENERAL, "missing bridge idx: link %s(%d) has no master", linkifname, ifidx);
 			goto out;
 		}
 
