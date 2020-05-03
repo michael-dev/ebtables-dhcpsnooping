@@ -153,6 +153,10 @@ obj_input_newlink(struct rtnl_link *link, struct nl_msg *msg, int fromDump)
 		return;
 	}
 	a_af_spec = nlmsg_find_attr(nlmsg_hdr(msg), sizeof(struct ifinfomsg), IFLA_AF_SPEC);
+	if (!a_af_spec) {
+		eprintf(DEBUG_BRIDGE, "msg has no IFLA_AF_SPEC");
+		return;
+	}
 
 	uint16_t pvid = 0;
 
