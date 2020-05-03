@@ -69,15 +69,18 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 
 #ifdef __USE_VLAN__
 	int vlanid = -1;
-	if (nfnl_log_msg_test_vlan_tag(msg))
+	if (nfnl_log_msg_test_vlan_tag(msg)) {
+		eprintf(DEBUG_NFLOG,  "obj_input...vlan tag");
 		vlanid = nfnl_log_msg_get_vlan_id(msg);
-	else
+	} else {
+		eprintf(DEBUG_NFLOG,  "obj_input...no vlan tag, query bridge");
 		vlanid = port_pvid(dev, ifname);
+	}
 #else
 	const int vlanid = -1;
 #endif
 
-	eprintf(DEBUG_NFLOG,  "obj_input...packet received");
+	eprintf(DEBUG_NFLOG,  "obj_input...packet received dev=%u ifname=%s vid=%u", dev, ifname, vlanid);
 	cb_call_packet_cb(hwproto, data, len, ifname, vlanid);
 }
 
