@@ -42,6 +42,7 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 {
 	struct nfnl_log_msg *msg = (struct nfnl_log_msg *) obj;
 	char ifname[IF_NAMESIZE];
+	char ifname_p[IF_NAMESIZE];
 
 	if (isdebug(DEBUG_NFLOG)) {
 		char buf[4096];
@@ -50,8 +51,11 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 	}
 
 	uint32_t  indev = nfnl_log_msg_get_indev(msg);
+	uint32_t  indev_p = nfnl_log_msg_get_physindev(msg);
 	uint32_t  outdev = nfnl_log_msg_get_outdev(msg);
+	uint32_t  outdev_p = nfnl_log_msg_get_physoutdev(msg);
 	uint32_t  dev = indev ? indev : outdev;
+	uint32_t  dev_p = indev ? indev_p : outdev_p;
 
 	if (indev != outdev && indev != 0 && outdev != 0) {
 		eprintf(DEBUG_NFLOG,  "obj_input_nflog...err indev %u !=outdev %u", indev, outdev);
@@ -60,6 +64,17 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 	memset(ifname,0,sizeof(ifname));
 	if (!if_indextoname(dev, ifname)) {
 		eprintf(DEBUG_ERROR,  "obj_input_nlog: failed to fetch interface name of ifidx %d: %s (%d)", dev, strerror(errno), errno);
+		return;
+	}
+
+	if (dev_p == 0) {
+		eprintf(DEBUG_NFLOG,  "obj_input...no physdev, use dev instead");
+		dev_p = dev;
+	}
+
+	memset(ifname_p,0,sizeof(ifname_p));
+	if (!if_indextoname(dev_p, ifname_p)) {
+		eprintf(DEBUG_ERROR,  "obj_input_nlog: failed to fetch interface name of phys ifidx %d: %s (%d)", dev_p, strerror(errno), errno);
 		return;
 	}
 
@@ -74,13 +89,13 @@ static void obj_input_nflog(struct nl_object *obj, void *arg)
 		vlanid = nfnl_log_msg_get_vlan_id(msg);
 	} else {
 		eprintf(DEBUG_NFLOG,  "obj_input...no vlan tag, query bridge");
-		vlanid = port_pvid(dev, ifname);
+		vlanid = port_pvid(dev_p, ifname_p);
 	}
 #else
 	const int vlanid = -1;
 #endif
 
-	eprintf(DEBUG_NFLOG,  "obj_input...packet received dev=%u ifname=%s vid=%u", dev, ifname, vlanid);
+	eprintf(DEBUG_NFLOG,  "obj_input...packet received dev=%u ifname=%s dev_p=%u ifname_p=%s vid=%u", dev, ifname, dev_p, ifname_p, vlanid);
 	cb_call_packet_cb(hwproto, data, len, ifname, vlanid);
 }
 
