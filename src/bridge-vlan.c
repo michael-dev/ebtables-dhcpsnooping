@@ -56,6 +56,7 @@ struct nf_obj_cb {
 
 struct port_info {
 	int ifidx;
+	int masterifidx;
 	char ifname[IFNAMSIZ];
 	uint16_t pvid;
 	struct port_info *next; 
@@ -66,9 +67,31 @@ static struct port_info *ports;
 static void bridge_dump_links();
 
 static int is_bridge_if(int ifidx) {
+	if (ifidx == -1) return 0;
+
 	for (int i = 0; i < bridge.num; i++) {
 		if (bridgeIfIdx[i] == ifidx)
 			return 1;
+	}
+	return 0;
+}
+
+static int del_bridge_if(int ifidx) {
+	for (int i = 0; i < bridge.num; i++) {
+		if (bridgeIfIdx[i] == ifidx) {
+			bridgeIfIdx[i] = -1;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int upsert_bridge_if(int ifidx, const char *ifname) {
+	for (int i = 0; i < bridge.num; i++) {
+		if (strncmp(ifname, bridge.item[i], IFNAMSIZ) == 0) {
+			bridgeIfIdx[i] = ifidx;
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -120,7 +143,25 @@ port_del(const int ifidx)
 }
 
 static void
-port_upsert(const int ifidx, const char *ifname, const int pvid)
+port_del_master(const int masterifidx)
+{
+	struct port_info *cur = ports, *prev = NULL, *next;
+	while (cur) {
+		next = cur->next;
+		if (cur->masterifidx == masterifidx) {
+			if (prev)
+				prev->next = cur->next;
+			else
+				ports = cur->next;
+			free(cur);
+		} else
+			prev = cur;
+		cur = next;
+	}
+}
+
+static void
+port_upsert(const int ifidx, const char *ifname, const int pvid, const int masterifidx)
 {
 	struct port_info *cur;
 	if (_port_find(ifidx, &cur, NULL) == 0) {
@@ -132,6 +173,7 @@ port_upsert(const int ifidx, const char *ifname, const int pvid)
 	}
 
 	cur->pvid = pvid;
+	cur->masterifidx = masterifidx;
 	strncpy(cur->ifname, ifname, sizeof(cur->ifname));
 	cur->ifname[sizeof(cur->ifname)-1] = '\0';
 }
@@ -140,15 +182,18 @@ static void
 obj_input_newlink(struct rtnl_link *link, struct nl_msg *msg, int fromDump)
 {
 	const int ifidx = rtnl_link_get_ifindex(link);
-	if (!is_bridge_if(rtnl_link_get_master(link)) &&
-	    !is_bridge_if(ifidx)) {
+	const int masterifidx = rtnl_link_get_master(link);
+	const char *ifname = rtnl_link_get_name(link);
+	if (!is_bridge_if(masterifidx) && !is_bridge_if(ifidx) &&
+	    upsert_bridge_if(ifidx, ifname) == 0) {
+		// not a bridge port
+		// not the bridge itself
+		// not the bridge itself after being recreated
 		port_del(ifidx);
 		return;
 	}
 
-	const char *ifname = rtnl_link_get_name(link);
-
-	eprintf(DEBUG_BRIDGE, "NEWLINK: %s(%d)", ifname, ifidx);
+	eprintf(DEBUG_BRIDGE, "NEWLINK: %s(%d) MASTER %d", ifname, ifidx, masterifidx);
 
 	struct ifinfomsg *ifi = nlmsg_data(nlmsg_hdr(msg));
 	struct nlattr *a_af_spec = NULL;
@@ -192,10 +237,9 @@ obj_input_newlink(struct rtnl_link *link, struct nl_msg *msg, int fromDump)
 		return;
 	}
 
-	eprintf(DEBUG_BRIDGE, "port: ifidx: %d name: %s pvid:%d", ifidx, ifname, pvid);
-	eprintf(DEBUG_VERBOSE, "port: ifidx: %d name: %s pvid:%d", ifidx, ifname, pvid);
+	eprintf(DEBUG_BRIDGE | DEBUG_VERBOSE, "port: ifidx: %d name: %s pvid: %d master: %d", ifidx, ifname, pvid, masterifidx);
 
-	port_upsert(ifidx, ifname, pvid);
+	port_upsert(ifidx, ifname, pvid, masterifidx);
 }
 
 static void
@@ -204,7 +248,9 @@ obj_input_dellink(struct rtnl_link *link, struct nl_msg *msg)
 	const int ifidx = rtnl_link_get_ifindex(link);
 	if (is_bridge_if(ifidx)) {
 		eprintf(DEBUG_ERROR, "my bridge %s removed", rtnl_link_get_name(link));
-		exit(254);
+		port_del_master(ifidx);
+		del_bridge_if(ifidx);
+		return;
 	}
 	port_del(ifidx);
 }
