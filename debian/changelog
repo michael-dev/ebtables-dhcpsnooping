@@ -1,3 +1,9 @@
+dhcpsnoopingd-fem (1.0) unstable; urgency=medium
+
+  * bump version
+
+ -- Michael Braun <michael-dev@fami-braun.de>  Wed, 06 May 2020 14:34:26 +0200
+
 dhcpsnoopingd-fem (0.1~20150412) unstable; urgency=low
 
   * dump bridge fdb on startup
