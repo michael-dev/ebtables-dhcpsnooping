@@ -10,7 +10,7 @@
 #export DH_VERBOSE=1
 
 override_dh_auto_configure:
-	dh_auto_configure -- --enable-mysql --enable-roaming --enable-debug
+	dh_auto_configure -- --enable-pgsql --enable-roaming --enable-debug --enable-nftables --enable-vlan --with-rev=$(git rev-parse HEAD)
 
 %:
 	dh $@  --with autotools-dev
