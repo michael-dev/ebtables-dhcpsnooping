@@ -161,9 +161,9 @@ void mysql_update_lease(const uint8_t* mac, const struct in_addr* yip, const cha
 
 	const uint32_t now = reltime();
 	if (vlanid >= 0)
-		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid)
+		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid);
 	else
-		snprintf(vlan, sizeof(vlan), "%s", ifname)
+		snprintf(vlan, sizeof(vlan), "%s", ifname);
 	eprintf(DEBUG_VERBOSE, "sql: update lease: MAC: %s IP: %s VLAN: %s expiresIn: %d", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*yip), vlan, (expiresAt - now));
 
 	char sql_esc_bridge[1024];
@@ -182,7 +182,7 @@ int mysql_update_lease_from_sql(const char* ifname, const int vlanid, const uint
 {
 	MYSQL_RES *result;
 	MYSQL_ROW row;
-	char sql[1024];
+	char sql[2048];
 	char sql_esc_bridge[1024];
 	char vlan[255];
 
@@ -190,9 +190,9 @@ int mysql_update_lease_from_sql(const char* ifname, const int vlanid, const uint
 		return -1;
 
 	if (vlanid >= 0)
-		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid)
+		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid);
 	else
-		snprintf(vlan, sizeof(vlan), "%s", ifname)
+		snprintf(vlan, sizeof(vlan), "%s", ifname);
 	mysql_real_escape_string(&mysql, sql_esc_bridge, vlan, MIN(strlen(vlan), sizeof(sql_esc_bridge) / 2 - 1));
 	snprintf(sql, sizeof(sql), "SELECT MAX(validUntil) - UNIX_TIMESTAMP() FROM " MYSQLLEASETABLE " WHERE validUntil > UNIX_TIMESTAMP() AND bridge = '%s' AND mac = '%s' AND ip = '%s';", sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip));
 	if (mysql_query_errprint(sql) != 0)
@@ -220,7 +220,7 @@ void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const int vlanid
 
 	eprintf(DEBUG_NEIGH, "query mysql\n");
 	/* query sql for lease and add local rules*/
-	char sql[1024];
+	char sql[2048];
 	char sql_esc_bridge[1024];
 	char vlan[255];
 	const uint32_t now = reltime();
@@ -228,9 +228,9 @@ void mysql_iterate_lease_for_ifname_and_mac(const char* ifname, const int vlanid
 	MYSQL_ROW row;
 
 	if (vlanid >= 0)
-		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid)
+		snprintf(vlan, sizeof(vlan), "%s%d", ifname, vlanid);
 	else
-		snprintf(vlan, sizeof(vlan), "%s", ifname)
+		snprintf(vlan, sizeof(vlan), "%s", ifname);
 	mysql_real_escape_string(&mysql, sql_esc_bridge, vlan, MIN(strlen(vlan), sizeof(sql_esc_bridge) / 2 - 1));
 	snprintf(sql, sizeof(sql), "SELECT ip, MAX(validUntil) - UNIX_TIMESTAMP() FROM %s WHERE validUntil > UNIX_TIMESTAMP() AND bridge = '%s' AND mac = '%s' GROUP BY ip;", MYSQLLEASETABLE, sql_esc_bridge, ether_ntoa_z((struct ether_addr *)mac));
 	eprintf(DEBUG_NEIGH, "query: %s", sql);
@@ -260,7 +260,7 @@ out2:
 	eprintf(DEBUG_NEIGH, "mysql completed");
 }
 
-void set_mysql_config_file(int c)
+void set_mysql_config_file(int c, void *ctx)
 {
 	mysql_config_file = optarg;
 }
@@ -268,7 +268,7 @@ void set_mysql_config_file(int c)
 static __attribute__((constructor)) void dhcp_mysql_init()
 {
 	static struct option long_option = {"mysql-config-file", required_argument, 0, 3};
-	add_option_cb(long_option, set_mysql_config_file);
+	add_option_cb(long_option, set_mysql_config_file, NULL);
 
 	eprintf(DEBUG_ERROR,  "MySQL client version: %s", mysql_get_client_info());
 	if (!mysql_init(&mysql)) {
