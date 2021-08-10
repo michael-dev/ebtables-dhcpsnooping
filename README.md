@@ -196,7 +196,7 @@ Roaming support
 ===============
 
 When used on multiple APs that share the same ESSID, it looks to the daemon
-like an STA attaches locally and used an IP address without doing DHCP. To
+like an STA attaches locally and uses an IP address without doing DHCP. To
 account for this, three mechanisms have been implemented:
 - store leases in a central MySQL/MariaDB or PostgreSQL (Cluster) Database
 - track locally connected STAs
