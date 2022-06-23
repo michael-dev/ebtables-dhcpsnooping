@@ -98,7 +98,7 @@ static void ebtables_do(const char* ifname, const int vlanid, const uint8_t* mac
 
 	const char* op = start ? "-A" : "-D";
 
-	if (vlanid == 0)
+	if (vlanid <= 0)
 		ebtables_novlan(op, ip, mac, ifname);
 	else
 		ebtables_vlan(op, ip, mac, ifname, vlanid);

@@ -183,7 +183,7 @@ static void nftables_do(const char* ifname, const int vlanid, const uint8_t* mac
 
 	assert(ip); assert(mac); assert(ifname);
 	eprintf(DEBUG_VERBOSE, "%s nftables rule: MAC: %s IP: %s BRIDGE: %s VLAN: %d", start ? "add" : "delete", ether_ntoa_z((struct ether_addr *)mac), inet_ntoa(*ip), ifname, vlanid);
-	if (vlanid == 0)
+	if (vlanid <= 0)
 		nftables_novlan(start, ip, mac, ifname);
 	else
 		nftables_vlan(start, ip, mac, ifname, vlanid);
