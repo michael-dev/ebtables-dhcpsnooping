@@ -4,6 +4,12 @@ dhcpsnoopingd-fem (1.0) unstable; urgency=medium
 
  -- Michael Braun <michael-dev@fami-braun.de>  Wed, 06 May 2020 14:34:26 +0200
 
+dhcpsnoopingd-fem (0.1~20150413) jessie-admindb; urgency=medium
+
+  * rebuild
+
+ -- Michael Braun <michael-dev@fami-braun.de>  Mon, 28 Sep 2015 17:09:50 +0200
+
 dhcpsnoopingd-fem (0.1~20150412) unstable; urgency=low
 
   * dump bridge fdb on startup
