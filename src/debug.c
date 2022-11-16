@@ -45,7 +45,7 @@ void edprint(const int level, const char* msg, const char* file, const int line,
 		snprintf(syslogbuf, sizeof(syslogbuf), "%s (%s:%d): %s", fnc, bname, line, msg);
 #ifdef DEBUG
 		openlog ("dhcpsnoopingd", LOG_CONS | LOG_PID | LOG_NDELAY | LOG_PERROR, LOG_DAEMON);
-		syslog(LOG_INFO, syslogbuf, strlen(syslogbuf));
+		syslog(LOG_INFO, "%s", syslogbuf);
 		closelog();
 #else
 		fprintf(stderr, "%s\n", syslogbuf);
